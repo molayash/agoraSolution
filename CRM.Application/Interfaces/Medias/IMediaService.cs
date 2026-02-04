@@ -1,0 +1,17 @@
+﻿using Microsoft.AspNetCore.Http;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace CRM.Application.Interfaces.Medias
+{
+    public interface IMediaService
+    {
+        string UploadFile(IFormFile file, string folderName);
+        string UpdateFile(string media, IFormFile file, string folderName);
+        void DeleteFile(string filename);
+        string GetMimeType(string extension);
+    }
+}
