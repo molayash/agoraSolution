@@ -34,11 +34,7 @@ public class CrmDbContext:IdentityDbContext<ApplicationUser, ApplicationRole, st
     #endregion
 
     #region Basic
-    public DbSet<Department> Departments { get; set; }
-    public DbSet<Designation> Designations { get; set; }
-    public DbSet<Organization> Organizations { get; set; }
-    public DbSet<Employee> Employees { get; set; }
-    public DbSet<EmployeeDetail> EmployeeDetails { get; set; }
+
 
     #endregion
 
