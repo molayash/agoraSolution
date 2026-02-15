@@ -1,0 +1,110 @@
+using CRM.Application.Services.Banner_Service;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace CRM.WebAPI.Controllers
+{
+    [Authorize]
+    [ApiController]
+    [Route("api/v1/[controller]")]
+    public class BannerController : ControllerBase
+    {
+        private readonly IBannerService _service;
+
+        public BannerController(IBannerService service)
+        {
+            _service = service;
+        }
+
+        [AllowAnonymous]
+        [HttpGet("getlist")]
+        public async Task<IActionResult> GetAll(CancellationToken ct)
+        {
+            try
+            {
+                var result = await _service.GetAllRecord(ct);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpGet("getById/{id:long}")]
+        public async Task<IActionResult> GetById(long id, CancellationToken ct)
+        {
+            try
+            {
+                var data = await _service.GetRecord(id, ct);
+                if (data == null)
+                    return NotFound(new { message = "Banner not found." });
+
+                return Ok(data);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("add")]
+        public async Task<IActionResult> Create(BannerViewModel model, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                var result = await _service.AddRecord(model, ct);
+                if (result == 2)
+                    return Ok(new { message = "Banner created successfully." });
+
+                return BadRequest(new { message = "Failed to create banner." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPut("update")]
+        public async Task<IActionResult> Update(BannerViewModel model, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                var result = await _service.UpdateRecord(model, ct);
+                if (result == 2)
+                    return Ok(new { message = "Banner updated successfully." });
+                else if (result == 0)
+                    return NotFound(new { message = "Banner not found." });
+
+                return BadRequest(new { message = "Failed to update banner." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpDelete("delete/{id:long}")]
+        public async Task<IActionResult> Delete(long id, CancellationToken ct)
+        {
+            try
+            {
+                var result = await _service.DeleteRecord(id, ct);
+                if (!result)
+                    return NotFound(new { message = "Banner not found." });
+
+                return Ok(new { message = "Banner deleted successfully." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+    }
+}

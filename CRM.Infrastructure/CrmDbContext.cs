@@ -34,7 +34,17 @@ public class CrmDbContext:IdentityDbContext<ApplicationUser, ApplicationRole, st
     #endregion
 
     #region Basic
-
+    public virtual DbSet<Brand> Brands { get; set; }
+    public virtual DbSet<ProductCategory> ProductCategory { get; set; }
+    public virtual DbSet<ProductSubCategory> ProductSubCategory { get; set; }
+    public virtual DbSet<Product> Product { get; set; }
+    public virtual DbSet<ProductAboutItem> ProductAboutItem { get; set; }
+    public virtual DbSet<ProductColor> ProductColor { get; set; }
+    public virtual DbSet<ProductImage> ProductImage { get; set; }
+    public virtual DbSet<ProductReview> ProductReview { get; set; }
+    public virtual DbSet<Banner> Banner { get; set; }
+    public virtual DbSet<HomeCategoryCollection> HomeCategoryCollections { get; set; }
+    public virtual DbSet<HomeCategoryProduct> HomeCategoryProducts { get; set; }
 
     #endregion
 
@@ -44,5 +54,35 @@ public class CrmDbContext:IdentityDbContext<ApplicationUser, ApplicationRole, st
 
         // Apply fixed seed data
         FixedData.Seed(builder);
+
+        builder.Entity<Product>()
+            .HasOne(p => p.SubCategory)
+            .WithMany()
+            .HasForeignKey(p => p.ProductSubCategoryId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<Product>()
+           .HasOne(p => p.Category)
+           .WithMany()
+           .HasForeignKey(p => p.ProductCategoryId)
+           .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<HomeCategoryCollection>()
+            .HasOne(h => h.Category)
+            .WithMany()
+            .HasForeignKey(h => h.ProductCategoryId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<HomeCategoryProduct>()
+            .HasOne(hp => hp.HomeCategoryCollection)
+            .WithMany(h => h.HomeCategoryProducts)
+            .HasForeignKey(hp => hp.HomeCategoryCollectionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<HomeCategoryProduct>()
+            .HasOne(hp => hp.Product)
+            .WithMany()
+            .HasForeignKey(hp => hp.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
