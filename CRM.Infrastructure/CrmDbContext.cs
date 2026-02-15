@@ -45,6 +45,8 @@ public class CrmDbContext:IdentityDbContext<ApplicationUser, ApplicationRole, st
     public virtual DbSet<Banner> Banner { get; set; }
     public virtual DbSet<HomeCategoryCollection> HomeCategoryCollections { get; set; }
     public virtual DbSet<HomeCategoryProduct> HomeCategoryProducts { get; set; }
+    public virtual DbSet<ContactInfo> ContactInfo { get; set; }
+    public virtual DbSet<ContactMessage> ContactMessages { get; set; }
 
     #endregion
 

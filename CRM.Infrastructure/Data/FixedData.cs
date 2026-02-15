@@ -73,6 +73,26 @@ namespace CRM.Infrastructure.data
                     RoleId = adminRoleId
                 }
             );
+
+            // ============================
+            // CONTACT INFO
+            // ============================
+            builder.Entity<CRM.Domain.Entities.ContactInfo>().HasData(
+                new CRM.Domain.Entities.ContactInfo
+                {
+                    Id = 1,
+                    Phone1 = "+88 01771528299",
+                    Phone2 = "+45 60818181",
+                    Email1 = "mf@plan365.dk",
+                    Email2 = "mmfaruk@mfcon.dk",
+                    Website1 = "www.mfcon.dk",
+                    Website2 = "www.plan365.dk",
+                    HeadOffice = "Vognmandsmarken 45, 2mf, 2100 Copenhagen, Denmark",
+                    BangladeshOffice = "59/4/2 North Basabo, Dhaka-1214, Bangladesh",
+                    CreatedAt = DateTime.UtcNow,
+                    IsDelete = 0
+                }
+            );
         }
     }
 }

@@ -13,6 +13,8 @@ using CRM.Application.Services.ProductCategory_Services;
 using CRM.Application.Services.ProductSubCategory_Service;
 using CRM.Application.Services.Banner_Service;
 using CRM.Application.Services.HomeCategory_Service;
+using CRM.Application.Services.ContactInfo_Service;
+using CRM.Application.Services.ContactMessage_Service;
 
 namespace CRM.Application.Extensions;
 public static class DependencyInjectionExtensions
@@ -37,6 +39,8 @@ public static class DependencyInjectionExtensions
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<IBannerService, BannerService>();
         services.AddScoped<IHomeCategoryService, HomeCategoryService>();
+        services.AddScoped<IContactInfoService, ContactInfoService>();
+        services.AddScoped<IContactMessageService, ContactMessageService>();
 
         return services;
     }
