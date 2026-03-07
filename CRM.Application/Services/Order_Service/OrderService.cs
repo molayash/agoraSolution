@@ -120,6 +120,7 @@ namespace CRM.Application.Services.Order_Service
             };
         }
 
+
         public async Task<OrderViewModel> GetOrderById(long id, CancellationToken ct)
         {
             var order = await _context.Orders
