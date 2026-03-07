@@ -4,6 +4,7 @@ using CRM.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CRM.Infrastructure.Migrations
 {
     [DbContext(typeof(CrmDbContext))]
-    partial class CrmDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260221045809_AddProductTablesw")]
+    partial class AddProductTablesw
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -156,7 +159,7 @@ namespace CRM.Infrastructure.Migrations
                             Id = "ADMIN-USER-001",
                             AccessFailedCount = 0,
                             ConcurrencyStamp = "ADMIN_CONCURRENCY_STAMP",
-                            CreatedDate = new DateTime(2026, 2, 21, 5, 45, 28, 442, DateTimeKind.Utc).AddTicks(6450),
+                            CreatedDate = new DateTime(2026, 2, 21, 4, 58, 6, 474, DateTimeKind.Utc).AddTicks(4583),
                             Email = "admin@crm.com",
                             EmailConfirmed = true,
                             EntryBy = "SYSTEM",
@@ -578,7 +581,7 @@ namespace CRM.Infrastructure.Migrations
                         {
                             Id = 1L,
                             BangladeshOffice = "59/4/2 North Basabo, Dhaka-1214, Bangladesh",
-                            CreatedAt = new DateTime(2026, 2, 21, 5, 45, 28, 442, DateTimeKind.Utc).AddTicks(6565),
+                            CreatedAt = new DateTime(2026, 2, 21, 4, 58, 6, 474, DateTimeKind.Utc).AddTicks(4639),
                             Email1 = "mf@plan365.dk",
                             Email2 = "mmfaruk@mfcon.dk",
                             HeadOffice = "Vognmandsmarken 45, 2mf, 2100 Copenhagen, Denmark",
@@ -747,10 +750,6 @@ namespace CRM.Infrastructure.Migrations
                     b.Property<string>("CreatedBy")
                         .HasMaxLength(250)
                         .HasColumnType("nvarchar(250)");
-
-                    b.Property<string>("CustomerQuery")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<string>("FirstName")
                         .IsRequired()

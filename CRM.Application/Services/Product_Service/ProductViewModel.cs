@@ -33,6 +33,7 @@ namespace CRM.Application.Services.Product_Service
         [Required]
         public string ProductName { get; set; }
         public string? ShortName { get; set; }
+        public string? ProductImageUrl { get; set; }
         public decimal UnitPrice { get; set; }
         public string? UnitName { get; set; }
         public decimal CostingPrice { get; set; }

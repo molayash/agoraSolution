@@ -47,6 +47,9 @@ public class CrmDbContext:IdentityDbContext<ApplicationUser, ApplicationRole, st
     public virtual DbSet<HomeCategoryProduct> HomeCategoryProducts { get; set; }
     public virtual DbSet<ContactInfo> ContactInfo { get; set; }
     public virtual DbSet<ContactMessage> ContactMessages { get; set; }
+    public virtual DbSet<Order> Orders { get; set; }
+    public virtual DbSet<OrderItem> OrderItems { get; set; }
+    public virtual DbSet<Vendor> Vendors { get; set; }
 
     #endregion
 
@@ -85,6 +88,13 @@ public class CrmDbContext:IdentityDbContext<ApplicationUser, ApplicationRole, st
             .HasOne(hp => hp.Product)
             .WithMany()
             .HasForeignKey(hp => hp.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Order Configuration
+        builder.Entity<Order>()
+            .HasMany(o => o.OrderItems)
+            .WithOne(oi => oi.Order)
+            .HasForeignKey(oi => oi.OrderId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

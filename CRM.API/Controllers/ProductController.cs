@@ -16,7 +16,7 @@ namespace CRM.WebAPI.Controllers
         {
             _service = service;
         }
-
+        [AllowAnonymous]
         [HttpGet("getlist")]
         public async Task<IActionResult> GetList(CancellationToken cancellationToken)
         {
@@ -30,7 +30,7 @@ namespace CRM.WebAPI.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
-
+        [AllowAnonymous]
         [HttpGet("getbyid/{id:long}")]
         public async Task<IActionResult> GetById(long id, CancellationToken cancellationToken)
         {

@@ -136,7 +136,7 @@ namespace CRM.Application.Services.Product_Service
 
         public async Task<ProductViewModel> GetAll(CancellationToken ct)
         {
-            var query = from p in _context.Product
+            var query = from p in _context.Product.Include(p => p.ProductImages)
                         join c in _context.ProductCategory on p.ProductCategoryId equals c.Id
                         join s in _context.ProductSubCategory on p.ProductSubCategoryId equals s.Id
                         join b in _context.Brands on p.BrandId equals b.Id into brandGroup
@@ -166,7 +166,8 @@ namespace CRM.Application.Services.Product_Service
                             Rating = p.Rating,
                             StockItems = p.StockItems,
                             CreatedBy = p.CreatedBy,
-                            CreatedDate = p.CreatedAt
+                            CreatedDate = p.CreatedAt,
+                            ProductImageUrl=p.ProductImages.Select(i=>i.ImageUrl).FirstOrDefault(),    
                         };
 
             var model = new ProductViewModel

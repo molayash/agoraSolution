@@ -22,6 +22,7 @@ namespace CRM.Application.Common.Pagination
 
         // Extended options (can be ignored by services if not needed)
         public string? SearchText { get; set; }
+        public string? SearchTerm { get; set; }
         public string? SortBy { get; set; }      // Property name
         public string? SortDirection { get; set; } = "ASC"; // ASC or DESC
     }

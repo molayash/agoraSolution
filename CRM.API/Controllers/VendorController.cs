@@ -1,21 +1,25 @@
-
-using CRM.Application.Services.Brand_Service;
+using CRM.Application.Services.Vendor_Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace CRM.WebAPI.Controllers
 {
     [Authorize]
     [ApiController]
     [Route("api/v1/[controller]")]
-    public class BrandController : ControllerBase
+    public class VendorController : ControllerBase
     {
-        private readonly IBrandService _service;
+        private readonly IVendorService _service;
 
-        public BrandController(IBrandService service)
+        public VendorController(IVendorService service)
         {
             _service = service;
         }
+
         [AllowAnonymous]
         [HttpGet("getlist")]
         public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
@@ -38,7 +42,7 @@ namespace CRM.WebAPI.Controllers
             {
                 var data = await _service.GetById(id);
                 if (data == null)
-                    return NotFound(new { message = "Brand not found." });
+                    return NotFound(new { message = "Vendor not found." });
 
                 return Ok(data);
             }
@@ -49,7 +53,7 @@ namespace CRM.WebAPI.Controllers
         }
 
         [HttpPost("add")]
-        public async Task<IActionResult> Create(BrandVm model, CancellationToken cancellationToken)
+        public async Task<IActionResult> Create(VendorVm model, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -58,9 +62,9 @@ namespace CRM.WebAPI.Controllers
             {
                 var result = await _service.Add(model, cancellationToken);
                 if (result)
-                    return Ok(new { message = "Brand created successfully." });
+                    return Ok(new { message = "Vendor created successfully." });
 
-                return BadRequest(new { message = "Failed to create brand." });
+                return BadRequest(new { message = "Failed to create vendor." });
             }
             catch (Exception ex)
             {
@@ -69,7 +73,7 @@ namespace CRM.WebAPI.Controllers
         }
 
         [HttpPut("update")]
-        public async Task<IActionResult> Update(BrandVm model)
+        public async Task<IActionResult> Update(VendorVm model)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -78,9 +82,9 @@ namespace CRM.WebAPI.Controllers
             {
                 var result = await _service.Update(model);
                 if (!result)
-                    return NotFound(new { message = "Brand not found." });
+                    return NotFound(new { message = "Vendor not found." });
 
-                return Ok(new { message = "Brand updated successfully." });
+                return Ok(new { message = "Vendor updated successfully." });
             }
             catch (Exception ex)
             {
@@ -95,9 +99,9 @@ namespace CRM.WebAPI.Controllers
             {
                 var result = await _service.Delete(id);
                 if (!result)
-                    return NotFound(new { message = "Brand not found." });
+                    return NotFound(new { message = "Vendor not found." });
 
-                return Ok(new { message = "Brand deleted successfully." });
+                return Ok(new { message = "Vendor deleted successfully." });
             }
             catch (Exception ex)
             {

@@ -15,6 +15,7 @@ namespace CRM.WebAPI.Controllers
         {
             _service = service;
         }
+        [AllowAnonymous]
 
         [HttpGet("getlist")]
         public async Task<IActionResult> GetAll(CancellationToken ct)
