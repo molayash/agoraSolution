@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using CRM.Application.Common.Result;
 
 namespace CRM.Application.Services.Banner_Service
 {
@@ -10,8 +6,8 @@ namespace CRM.Application.Services.Banner_Service
     {
         Task<BannerViewModel> GetAllRecord(CancellationToken ct);
         Task<BannerViewModel> GetRecord(long id, CancellationToken ct);
-        Task<int> AddRecord(BannerViewModel model, CancellationToken ct);
-        Task<int> UpdateRecord(BannerViewModel model, CancellationToken ct);
-        Task<bool> DeleteRecord(long id, CancellationToken ct);
+        Task<ServiceResult> AddRecord(BannerViewModel model, CancellationToken ct);
+        Task<ServiceResult> UpdateRecord(BannerViewModel model, CancellationToken ct);
+        Task<ServiceResult> DeleteRecord(long id, CancellationToken ct);
     }
 }

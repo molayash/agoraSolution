@@ -1,10 +1,6 @@
 using CRM.Application.Services.Vendor_Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace CRM.WebAPI.Controllers
 {
@@ -24,32 +20,18 @@ namespace CRM.WebAPI.Controllers
         [HttpGet("getlist")]
         public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
         {
-            try
-            {
-                var data = await _service.GetAll(cancellationToken);
-                return Ok(data);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var data = await _service.GetAll(cancellationToken);
+            return Ok(data);
         }
 
         [HttpGet("getById/{id:long}")]
         public async Task<IActionResult> GetById(long id)
         {
-            try
-            {
-                var data = await _service.GetById(id);
-                if (data == null)
-                    return NotFound(new { message = "Vendor not found." });
+            var data = await _service.GetById(id);
+            if (data == null)
+                return NotFound(new { message = "Vendor not found." });
 
-                return Ok(data);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            return Ok(data);
         }
 
         [HttpPost("add")]
@@ -58,18 +40,11 @@ namespace CRM.WebAPI.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            try
-            {
-                var result = await _service.Add(model, cancellationToken);
-                if (result)
-                    return Ok(new { message = "Vendor created successfully." });
+            var result = await _service.Add(model, cancellationToken);
+            if (result)
+                return Ok(new { message = "Vendor created successfully." });
 
-                return BadRequest(new { message = "Failed to create vendor." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            return BadRequest(new { message = "Failed to create vendor." });
         }
 
         [HttpPut("update")]
@@ -78,35 +53,21 @@ namespace CRM.WebAPI.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            try
-            {
-                var result = await _service.Update(model);
-                if (!result)
-                    return NotFound(new { message = "Vendor not found." });
+            var result = await _service.Update(model);
+            if (!result)
+                return NotFound(new { message = "Vendor not found." });
 
-                return Ok(new { message = "Vendor updated successfully." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            return Ok(new { message = "Vendor updated successfully." });
         }
 
         [HttpDelete("delete/{id:long}")]
         public async Task<IActionResult> Delete(long id)
         {
-            try
-            {
-                var result = await _service.Delete(id);
-                if (!result)
-                    return NotFound(new { message = "Vendor not found." });
+            var result = await _service.Delete(id);
+            if (!result)
+                return NotFound(new { message = "Vendor not found." });
 
-                return Ok(new { message = "Vendor deleted successfully." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            return Ok(new { message = "Vendor deleted successfully." });
         }
     }
 }

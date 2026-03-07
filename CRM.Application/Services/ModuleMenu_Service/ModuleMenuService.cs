@@ -1,33 +1,28 @@
-﻿using CRM.Application.Services.Work_Context;
+using CRM.Application.Interfaces.Repositories;
+using CRM.Application.Services.Work_Context;
 using CRM.Domain.Entities.Auth;
-using CRM.Infrastructure;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CRM.Application.Services.ModuleMenu_Service
 {
     public class ModuleMenuService : IModuleMenuService
     {
-        private readonly CrmDbContext _context;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IWorkContext workContext;
-        public ModuleMenuService(CrmDbContext context, IWorkContext workContext)
+
+        public ModuleMenuService(IUnitOfWork unitOfWork, IWorkContext workContext)
         {
-            _context = context;
+            _unitOfWork = unitOfWork;
             this.workContext = workContext;
         }
 
-        // ===================== GET ALL =====================
         public async Task<IEnumerable<ModuleMenuVM>> GetAllAsync()
         {
-            return await _context.ModuleMenus
+            return await _unitOfWork.ModuleMenus.Query()
                 .AsNoTracking()
                 .Where(x => x.IsDelete == 0)
                 .Join(
-                    _context.UserModules,
+                    _unitOfWork.UserModules.Query(),
                     menu => menu.UserModuleId,
                     module => module.Id,
                     (menu, module) => new ModuleMenuVM
@@ -46,16 +41,14 @@ namespace CRM.Application.Services.ModuleMenu_Service
                         ModuleSortOrder = module.SortOrder
                     }
                 )
-                .OrderBy(x => x.ModuleSortOrder)   // 1️⃣ first by module
-                .ThenBy(x => x.SortOrder)          // 2️⃣ then by menu
+                .OrderBy(x => x.ModuleSortOrder)
+                .ThenBy(x => x.SortOrder)
                 .ToListAsync();
         }
 
-
-        // ===================== GET BY ID =====================
         public async Task<ModuleMenuVM?> GetByIdAsync(long id)
         {
-            return await _context.ModuleMenus
+            return await _unitOfWork.ModuleMenus.Query()
                 .AsNoTracking()
                 .Where(x => x.Id == id && x.IsDelete == 0)
                 .Select(x => new ModuleMenuVM
@@ -74,11 +67,9 @@ namespace CRM.Application.Services.ModuleMenu_Service
                 .FirstOrDefaultAsync();
         }
 
-        // ===================== CREATE =====================
         public async Task<long> CreateAsync(ModuleMenuVM model)
         {
-            // 🔒 Duplicate menu validation (same module + parent)
-            bool exists = await _context.ModuleMenus.AnyAsync(x =>
+            bool exists = await _unitOfWork.ModuleMenus.AnyAsync(x =>
                 x.IsDelete == 0 &&
                 x.UserModuleId == model.UserModuleId &&
                 x.ParentId == model.ParentId &&
@@ -87,15 +78,6 @@ namespace CRM.Application.Services.ModuleMenu_Service
             if (exists)
                 throw new Exception("Menu already exists under this module.");
 
-            // 🔒 Parent validation
-            //if (model.ParentId.HasValue)
-            //{
-            //    bool parentExists = await _context.ModuleMenus.AnyAsync(x =>
-            //        x.Id == model.ParentId && x.IsDelete == 0);
-
-            //    if (!parentExists)
-            //        throw new Exception("Parent menu not found.");
-            //}
             var user = await workContext.CurrentUserAsync();
             var entity = new ModuleMenu
             {
@@ -113,22 +95,20 @@ namespace CRM.Application.Services.ModuleMenu_Service
                 IsDelete = 0
             };
 
-            _context.ModuleMenus.Add(entity);
-            await _context.SaveChangesAsync();
+            _unitOfWork.ModuleMenus.Add(entity);
+            await _unitOfWork.SaveChangesAsync();
             return entity.Id;
         }
 
-        // ===================== UPDATE =====================
         public async Task<bool> UpdateAsync(ModuleMenuVM model)
         {
             var user = await workContext.CurrentUserAsync();
-            var entity = await _context.ModuleMenus
+            var entity = await _unitOfWork.ModuleMenus.Query()
                 .FirstOrDefaultAsync(x => x.Id == model.Id && x.IsDelete == 0);
 
-            if (entity == null)
-                return false;
+            if (entity == null) return false;
 
-            bool exists = await _context.ModuleMenus.AnyAsync(x =>
+            bool exists = await _unitOfWork.ModuleMenus.AnyAsync(x =>
                 x.Id != model.Id &&
                 x.IsDelete == 0 &&
                 x.UserModuleId == model.UserModuleId &&
@@ -149,29 +129,24 @@ namespace CRM.Application.Services.ModuleMenu_Service
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = user.FullName;
 
-            await _context.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync();
             return true;
         }
 
-        // ===================== DELETE =====================
         public async Task<bool> DeleteAsync(long id)
         {
             var user = await workContext.CurrentUserAsync();
-
-            var entity = await _context.ModuleMenus
+            var entity = await _unitOfWork.ModuleMenus.Query()
                 .FirstOrDefaultAsync(x => x.Id == id && x.IsDelete == 0);
 
-            if (entity == null)
-                return false;
+            if (entity == null) return false;
 
             entity.IsDelete = 1;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = user.FullName;
 
-            await _context.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync();
             return true;
         }
-
-     
     }
 }

@@ -1,26 +1,21 @@
+using CRM.Application.Interfaces.Repositories;
 using CRM.Domain.Entities;
-using CRM.Infrastructure;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CRM.Application.Services.ContactMessage_Service
 {
     public class ContactMessageService : IContactMessageService
     {
-        private readonly CrmDbContext _context;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public ContactMessageService(CrmDbContext context)
+        public ContactMessageService(IUnitOfWork unitOfWork)
         {
-            _context = context;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<List<ContactMessageVm>> GetListAsync()
         {
-            return await _context.ContactMessages
+            return await _unitOfWork.ContactMessages.Query()
                 .Where(x => x.IsDelete != 1)
                 .OrderByDescending(x => x.CreatedAt)
                 .Select(x => new ContactMessageVm
@@ -31,7 +26,8 @@ namespace CRM.Application.Services.ContactMessage_Service
                     Message = x.Message,
                     IsSeen = x.IsSeen,
                     CreatedAt = x.CreatedAt
-                }).ToListAsync();
+                })
+                .ToListAsync();
         }
 
         public async Task<bool> AddAsync(ContactMessageVm model)
@@ -46,30 +42,32 @@ namespace CRM.Application.Services.ContactMessage_Service
                 IsDelete = 0
             };
 
-            await _context.ContactMessages.AddAsync(entity);
-            return await _context.SaveChangesAsync() > 0;
+            await _unitOfWork.ContactMessages.AddAsync(entity);
+            return await _unitOfWork.SaveChangesAsync() > 0;
         }
 
         public async Task<bool> MarkAsSeenAsync(long id)
         {
-            var entity = await _context.ContactMessages.FindAsync(id);
+            var entity = await _unitOfWork.ContactMessages.Query()
+                .FirstOrDefaultAsync(x => x.Id == id);
             if (entity == null) return false;
 
             entity.IsSeen = true;
             entity.UpdatedAt = DateTime.Now;
 
-            return await _context.SaveChangesAsync() > 0;
+            return await _unitOfWork.SaveChangesAsync() > 0;
         }
 
         public async Task<bool> DeleteAsync(long id)
         {
-            var entity = await _context.ContactMessages.FindAsync(id);
+            var entity = await _unitOfWork.ContactMessages.Query()
+                .FirstOrDefaultAsync(x => x.Id == id);
             if (entity == null) return false;
 
             entity.IsDelete = 1;
             entity.UpdatedAt = DateTime.Now;
 
-            return await _context.SaveChangesAsync() > 0;
+            return await _unitOfWork.SaveChangesAsync() > 0;
         }
     }
 }

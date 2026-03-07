@@ -1,36 +1,28 @@
+using CRM.Application.Interfaces.Repositories;
 using CRM.Application.Services.Work_Context;
 using CRM.Domain.Entities;
-using CRM.Infrastructure;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace CRM.Application.Services.Vendor_Service
 {
     public class VendorService : IVendorService
     {
         private readonly IWorkContext _workContext;
-        private readonly CrmDbContext _context;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public VendorService(IWorkContext workContext, CrmDbContext context)
+        public VendorService(IWorkContext workContext, IUnitOfWork unitOfWork)
         {
             _workContext = workContext;
-            _context = context;
+            _unitOfWork = unitOfWork;
         }
 
-        // ✅ ADD VENDOR
         public async Task<bool> Add(VendorVm model, CancellationToken cancellationToken)
         {
             var user = await _workContext.CurrentUserAsync();
             if (model == null) return false;
 
-            // Prevent duplicate vendor by email
-            var exists = await _context.Vendors
-                .AnyAsync(x => x.Email == model.Email && x.IsDelete == 0, cancellationToken);
+            var exists = await _unitOfWork.Vendors.AnyAsync(
+                x => x.Email == model.Email && x.IsDelete == 0, cancellationToken);
 
             if (exists)
                 throw new Exception("Vendor with this email already exists.");
@@ -50,16 +42,15 @@ namespace CRM.Application.Services.Vendor_Service
                 CreatedAt = DateTime.UtcNow
             };
 
-            await _context.Vendors.AddAsync(vendor, cancellationToken);
-            await _context.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.Vendors.AddAsync(vendor, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return true;
         }
 
-        // ✅ GET ALL
         public async Task<List<VendorVm>> GetAll(CancellationToken cancellationToken)
         {
-            return await _context.Vendors
+            return await _unitOfWork.Vendors.Query()
                 .Where(x => x.IsDelete == 0)
                 .OrderByDescending(x => x.Id)
                 .Select(x => new VendorVm
@@ -77,10 +68,9 @@ namespace CRM.Application.Services.Vendor_Service
                 .ToListAsync(cancellationToken);
         }
 
-        // ✅ GET BY ID
         public async Task<VendorVm> GetById(long Id)
         {
-            var vendor = await _context.Vendors
+            var vendor = await _unitOfWork.Vendors.Query()
                 .Where(x => x.Id == Id && x.IsDelete == 0)
                 .Select(x => new VendorVm
                 {
@@ -102,19 +92,17 @@ namespace CRM.Application.Services.Vendor_Service
             return vendor;
         }
 
-        // ✅ UPDATE
         public async Task<bool> Update(VendorVm model)
         {
             var user = await _workContext.CurrentUserAsync();
-            var vendor = await _context.Vendors
+            var vendor = await _unitOfWork.Vendors.Query()
                 .FirstOrDefaultAsync(x => x.Id == model.Id && x.IsDelete == 0);
 
             if (vendor == null)
                 throw new Exception("Vendor not found.");
 
-            // Check duplicate email for other vendors
-            var exists = await _context.Vendors
-                .AnyAsync(x => x.Email == model.Email && x.Id != model.Id && x.IsDelete == 0);
+            var exists = await _unitOfWork.Vendors.AnyAsync(
+                x => x.Email == model.Email && x.Id != model.Id && x.IsDelete == 0);
 
             if (exists)
                 throw new Exception("Another vendor with the same email exists.");
@@ -130,17 +118,16 @@ namespace CRM.Application.Services.Vendor_Service
             vendor.UpdatedBy = user.FullName;
             vendor.UpdatedAt = DateTime.UtcNow;
 
-            _context.Vendors.Update(vendor);
-            await _context.SaveChangesAsync();
+            _unitOfWork.Vendors.Update(vendor);
+            await _unitOfWork.SaveChangesAsync();
 
             return true;
         }
 
-        // ✅ SOFT DELETE
         public async Task<bool> Delete(long Id)
         {
             var user = await _workContext.CurrentUserAsync();
-            var vendor = await _context.Vendors
+            var vendor = await _unitOfWork.Vendors.Query()
                 .FirstOrDefaultAsync(x => x.Id == Id && x.IsDelete == 0);
 
             if (vendor == null)
@@ -150,7 +137,7 @@ namespace CRM.Application.Services.Vendor_Service
             vendor.UpdatedBy = user.FullName;
             vendor.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync();
 
             return true;
         }

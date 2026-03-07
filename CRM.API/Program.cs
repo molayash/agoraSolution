@@ -1,13 +1,15 @@
 ﻿using CRM.Domain.Entities.Auth;
 using CRM.Infrastructure;
+using CRM.Infrastructure.Repositories;
 using CRM.Application.Extensions;
+using CRM.Application.Interfaces.Repositories;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using app.WebApp.Handlers;
-using CRM.Application.Interfaces.Medias;
+using CRM.WebAPI.Extensions;
+using CRM.WebAPI.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -117,8 +119,11 @@ builder.Services.AddAuthentication(options =>
 // ✅ Application Services (Clean Architecture)
 builder.Services.ConfigureServices(builder.Configuration);
 
-// ✅ Custom Services
-builder.Services.AddTransient<IMediaService, MediaService>();
+// ✅ Infrastructure: Unit of Work
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+// ✅ API-layer Services (MediaService etc.)
+builder.Services.AddApiServices();
 
 
 var app = builder.Build();
@@ -132,8 +137,8 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 
-// ❗ If using global error handler
-// app.UseMiddleware<GlobalExceptionHandler>();
+// ✅ Global Exception Handler
+app.UseMiddleware<GlobalExceptionHandler>();
 
 
 // ✅ HTTPS

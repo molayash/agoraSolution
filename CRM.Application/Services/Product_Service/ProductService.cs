@@ -1,44 +1,40 @@
 using CRM.Application.Common.Pagination;
+using CRM.Application.Common.Result;
+using CRM.Application.DTOs.Product;
 using CRM.Application.Interfaces.Medias;
+using CRM.Application.Interfaces.Repositories;
 using CRM.Application.Services.Work_Context;
 using CRM.Domain.Entities;
-using CRM.Infrastructure;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CRM.Application.Services.Product_Service
 {
     public class ProductService : IProductService
     {
         private readonly IWorkContext _workContext;
-        private readonly CrmDbContext _context;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IMediaService _mediaService;
         private readonly IPaginationService _paginationService;
 
         public ProductService(
-            IWorkContext workContext, 
-            CrmDbContext context,
+            IWorkContext workContext,
+            IUnitOfWork unitOfWork,
             IPaginationService paginationService,
-            IMediaService mediaService
-            )
+            IMediaService mediaService)
         {
             _workContext = workContext;
-            _context = context;
+            _unitOfWork = unitOfWork;
             _paginationService = paginationService;
             _mediaService = mediaService;
         }
 
-        public async Task<int> AddRecord(ProductViewModel model, CancellationToken ct)
+        public async Task<ServiceResult> AddRecord(ProductViewModel model, CancellationToken ct)
         {
             var user = await _workContext.GetCurrentUserAsync();
-            var exists = await _context.Product
-                .AnyAsync(x => x.ProductName.Trim().ToLower() == model.ProductName.Trim().ToLower() && x.IsDelete == 0, ct);
+            var exists = await _unitOfWork.Products.AnyAsync(
+                x => x.ProductName.Trim().ToLower() == model.ProductName.Trim().ToLower() && x.IsDelete == 0, ct);
 
-            if (exists) return 1; // Duplicate
+            if (exists) return ServiceResult.Duplicate("Product already exists.");
 
             var product = new Product
             {
@@ -61,85 +57,74 @@ namespace CRM.Application.Services.Product_Service
                 CreatedAt = DateTime.UtcNow
             };
 
-            // Add Related Collections safely
             if (model.ProductAboutItems != null && model.ProductAboutItems.Any())
             {
-                product.ProductAboutItems = new List<ProductAboutItem>();
-                foreach (var item in model.ProductAboutItems)
+                product.ProductAboutItems = model.ProductAboutItems.Select(item => new ProductAboutItem
                 {
-                    item.Id = 0;
-                    // Map frontend fields (Name/Description) to AboutItem if AboutItem is null
-                    if (string.IsNullOrEmpty(item.AboutItem))
-                    {
-                        item.AboutItem = string.IsNullOrEmpty(item.Description) ? item.Name : $"{item.Name}: {item.Description}";
-                    }
-                    product.ProductAboutItems.Add(item);
-                }
+                    AboutItem = string.IsNullOrEmpty(item.AboutItem)
+                        ? (string.IsNullOrEmpty(item.Description) ? item.Name : $"{item.Name}: {item.Description}")
+                        : item.AboutItem
+                }).ToList();
             }
 
             if (model.ProductColors != null && model.ProductColors.Any())
             {
-                product.ProductColors = new List<ProductColor>();
-                foreach (var item in model.ProductColors)
+                product.ProductColors = model.ProductColors.Select(item => new ProductColor
                 {
-                    item.Id = 0;
-                    // Map frontend fields (Name/ColorCode) to Color if Color is null
-                    if (string.IsNullOrEmpty(item.Color))
-                    {
-                        item.Color = string.IsNullOrEmpty(item.ColorCode) ? item.Name : $"{item.Name} ({item.ColorCode})";
-                    }
-                    product.ProductColors.Add(item);
-                }
+                    Color = string.IsNullOrEmpty(item.Color)
+                        ? (string.IsNullOrEmpty(item.ColorCode) ? item.Name : $"{item.Name} ({item.ColorCode})")
+                        : item.Color
+                }).ToList();
             }
 
             if (model.ProductImages != null && model.ProductImages.Any())
             {
-                product.ProductImages = new List<ProductImage>();
-                foreach (var item in model.ProductImages)
+                product.ProductImages = model.ProductImages.Select(item => new ProductImage
                 {
-                    item.Id = 0;
-                    product.ProductImages.Add(item);
-                }
+                    ImageUrl = item.ImageUrl
+                }).ToList();
             }
 
             if (model.ProductReviews != null && model.ProductReviews.Any())
             {
-                product.ProductReviews = new List<ProductReview>();
-                foreach (var item in model.ProductReviews)
+                product.ProductReviews = model.ProductReviews.Select(item => new ProductReview
                 {
-                    item.Id = 0;
-                    product.ProductReviews.Add(item);
-                }
+                    UserId = item.UserId,
+                    UserName = item.UserName,
+                    Rating = item.Rating,
+                    Comment = item.Comment,
+                    ReviewDate = item.ReviewDate
+                }).ToList();
             }
 
-            await _context.Product.AddAsync(product, ct);
-            await _context.SaveChangesAsync(ct);
+            await _unitOfWork.Products.AddAsync(product, ct);
+            await _unitOfWork.SaveChangesAsync(ct);
 
-            return 2; // Success
+            return ServiceResult.Ok("Product created successfully.");
         }
 
-        public async Task<bool> DeleteRecord(long id, CancellationToken ct)
+        public async Task<ServiceResult> DeleteRecord(long id, CancellationToken ct)
         {
             var user = await _workContext.GetCurrentUserAsync();
-            var product = await _context.Product
+            var product = await _unitOfWork.Products.Query()
                 .FirstOrDefaultAsync(x => x.Id == id && x.IsDelete == 0, ct);
 
-            if (product == null) return false;
+            if (product == null) return ServiceResult.NotFound("Product not found.");
 
             product.IsDelete = 1;
             product.UpdatedBy = user.FullName;
             product.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(ct);
-            return true;
+            await _unitOfWork.SaveChangesAsync(ct);
+            return ServiceResult.Ok("Product deleted successfully.");
         }
 
         public async Task<ProductViewModel> GetAll(CancellationToken ct)
         {
-            var query = from p in _context.Product.Include(p => p.ProductImages)
-                        join c in _context.ProductCategory on p.ProductCategoryId equals c.Id
-                        join s in _context.ProductSubCategory on p.ProductSubCategoryId equals s.Id
-                        join b in _context.Brands on p.BrandId equals b.Id into brandGroup
+            var query = from p in _unitOfWork.Products.Query().Include(p => p.ProductImages)
+                        join c in _unitOfWork.ProductCategories.Query() on p.ProductCategoryId equals c.Id
+                        join s in _unitOfWork.ProductSubCategories.Query() on p.ProductSubCategoryId equals s.Id
+                        join b in _unitOfWork.Brands.Query() on p.BrandId equals b.Id into brandGroup
                         from b in brandGroup.DefaultIfEmpty()
                         where p.IsDelete == 0
                         select new ProductViewModel
@@ -167,23 +152,18 @@ namespace CRM.Application.Services.Product_Service
                             StockItems = p.StockItems,
                             CreatedBy = p.CreatedBy,
                             CreatedDate = p.CreatedAt,
-                            ProductImageUrl=p.ProductImages.Select(i=>i.ImageUrl).FirstOrDefault(),    
+                            ProductImageUrl = p.ProductImages.Select(i => i.ImageUrl).FirstOrDefault(),
                         };
 
-            var model = new ProductViewModel
-            {
-                ProductList = query.AsQueryable()
-            };
-
-            return model;
+            return new ProductViewModel { ProductList = query.AsQueryable() };
         }
 
         public async Task<PaginatedResult<ProductViewModel>> GetPagination(PaginationRequest request, CancellationToken ct)
         {
-            var query = from p in _context.Product
-                        join c in _context.ProductCategory on p.ProductCategoryId equals c.Id
-                        join s in _context.ProductSubCategory on p.ProductSubCategoryId equals s.Id
-                        join b in _context.Brands on p.BrandId equals b.Id into brandGroup
+            var query = from p in _unitOfWork.Products.Query()
+                        join c in _unitOfWork.ProductCategories.Query() on p.ProductCategoryId equals c.Id
+                        join s in _unitOfWork.ProductSubCategories.Query() on p.ProductSubCategoryId equals s.Id
+                        join b in _unitOfWork.Brands.Query() on p.BrandId equals b.Id into brandGroup
                         from b in brandGroup.DefaultIfEmpty()
                         where p.IsDelete == 0
                         orderby p.Id descending
@@ -219,78 +199,74 @@ namespace CRM.Application.Services.Product_Service
 
         public async Task<ProductViewModel> GetRecord(long id, CancellationToken ct)
         {
-            var productModel = await (from p in _context.Product
-                                 join c in _context.ProductCategory on p.ProductCategoryId equals c.Id
-                                 join s in _context.ProductSubCategory on p.ProductSubCategoryId equals s.Id
-                                 join b in _context.Brands on p.BrandId equals b.Id into brandGroup
-                                 from b in brandGroup.DefaultIfEmpty()
-                                 where p.Id == id && p.IsDelete == 0
-                                 select new ProductViewModel
-                                 {
-                                     Id = p.Id,
-                                     ProductCategoryId = p.ProductCategoryId,
-                                     ProductCategoryName = c.Name,
-                                     ProductSubCategoryId = p.ProductSubCategoryId,
-                                     ProductSubCategoryName = s.Name,
-                                     BrandId = p.BrandId,
-                                     BrandName = b != null ? b.Name : null,
-                                     CategoryImageUrl = c.ImageUrl,
-                                     SubCategoryImageUrl = s.ImageUrl,
-                                     BrandImageUrl = b != null ? b.ImageUrl : null,
-                                     ProductCode = p.ProductCode,
-                                     ProductName = p.ProductName,
-                                     ShortName = p.ShortName,
-                                     UnitPrice = p.UnitPrice,
-                                     UnitName = p.UnitName,
-                                     CostingPrice = p.CostingPrice,
-                                     AVGPrice = p.AVGPrice,
-                                     MRP = p.MRP,
-                                     Weight = p.Weight,
-                                     Rating = p.Rating,
-                                     StockItems = p.StockItems,
-                                     CreatedBy = p.CreatedBy,
-                                     CreatedDate = p.CreatedAt,
-                                     ProductAboutItems = p.ProductAboutItems.Where(x => x.IsDelete == 0 || x.IsDelete == null).ToList(),
-                                     ProductColors = p.ProductColors.Where(x => x.IsDelete == 0 || x.IsDelete == null).ToList(),
-                                     ProductImages = p.ProductImages.Where(x => x.IsDelete == 0 || x.IsDelete == null).ToList(),
-                                     ProductReviews = p.ProductReviews.Where(x => x.IsDelete == 0 || x.IsDelete == null).ToList()
-                                 }).FirstOrDefaultAsync(ct);
+            var productModel = await (from p in _unitOfWork.Products.Query()
+                                      join c in _unitOfWork.ProductCategories.Query() on p.ProductCategoryId equals c.Id
+                                      join s in _unitOfWork.ProductSubCategories.Query() on p.ProductSubCategoryId equals s.Id
+                                      join b in _unitOfWork.Brands.Query() on p.BrandId equals b.Id into brandGroup
+                                      from b in brandGroup.DefaultIfEmpty()
+                                      where p.Id == id && p.IsDelete == 0
+                                      select new ProductViewModel
+                                      {
+                                          Id = p.Id,
+                                          ProductCategoryId = p.ProductCategoryId,
+                                          ProductCategoryName = c.Name,
+                                          ProductSubCategoryId = p.ProductSubCategoryId,
+                                          ProductSubCategoryName = s.Name,
+                                          BrandId = p.BrandId,
+                                          BrandName = b != null ? b.Name : null,
+                                          CategoryImageUrl = c.ImageUrl,
+                                          SubCategoryImageUrl = s.ImageUrl,
+                                          BrandImageUrl = b != null ? b.ImageUrl : null,
+                                          ProductCode = p.ProductCode,
+                                          ProductName = p.ProductName,
+                                          ShortName = p.ShortName,
+                                          UnitPrice = p.UnitPrice,
+                                          UnitName = p.UnitName,
+                                          CostingPrice = p.CostingPrice,
+                                          AVGPrice = p.AVGPrice,
+                                          MRP = p.MRP,
+                                          Weight = p.Weight,
+                                          Rating = p.Rating,
+                                          StockItems = p.StockItems,
+                                          CreatedBy = p.CreatedBy,
+                                          CreatedDate = p.CreatedAt,
+                                          ProductAboutItems = p.ProductAboutItems
+                                              .Where(x => x.IsDelete == 0 || x.IsDelete == null)
+                                              .Select(x => new ProductAboutItemDto { Id = x.Id, ProductId = x.ProductId, AboutItem = x.AboutItem })
+                                              .ToList(),
+                                          ProductColors = p.ProductColors
+                                              .Where(x => x.IsDelete == 0 || x.IsDelete == null)
+                                              .Select(x => new ProductColorDto { Id = x.Id, ProductId = x.ProductId, Color = x.Color })
+                                              .ToList(),
+                                          ProductImages = p.ProductImages
+                                              .Where(x => x.IsDelete == 0 || x.IsDelete == null)
+                                              .Select(x => new ProductImageDto { Id = x.Id, ProductId = x.ProductId, ImageUrl = x.ImageUrl })
+                                              .ToList(),
+                                          ProductReviews = p.ProductReviews
+                                              .Where(x => x.IsDelete == 0 || x.IsDelete == null)
+                                              .Select(x => new ProductReviewDto { Id = x.Id, ProductId = x.ProductId, UserId = x.UserId, UserName = x.UserName, Rating = x.Rating, Comment = x.Comment, ReviewDate = x.ReviewDate })
+                                              .ToList()
+                                      }).FirstOrDefaultAsync(ct);
 
             if (productModel != null)
             {
-                // Populate unmapped fields for AboutItems
                 foreach (var item in productModel.ProductAboutItems)
                 {
                     if (string.IsNullOrEmpty(item.Name) && !string.IsNullOrEmpty(item.AboutItem))
                     {
                         var parts = item.AboutItem.Split(": ");
-                        if (parts.Length > 1)
-                        {
-                            item.Name = parts[0];
-                            item.Description = parts[1];
-                        }
-                        else
-                        {
-                            item.Name = item.AboutItem;
-                        }
+                        if (parts.Length > 1) { item.Name = parts[0]; item.Description = string.Join(": ", parts.Skip(1)); }
+                        else item.Name = item.AboutItem;
                     }
                 }
 
-                // Populate unmapped fields for Colors
                 foreach (var item in productModel.ProductColors)
                 {
                     if (string.IsNullOrEmpty(item.Name) && !string.IsNullOrEmpty(item.Color))
                     {
                         var parts = item.Color.Split(" (");
-                        if (parts.Length > 1)
-                        {
-                            item.Name = parts[0];
-                            item.ColorCode = parts[1].Replace(")", "");
-                        }
-                        else
-                        {
-                            item.Name = item.Color;
-                        }
+                        if (parts.Length > 1) { item.Name = parts[0]; item.ColorCode = parts[1].TrimEnd(')'); }
+                        else item.Name = item.Color;
                     }
                 }
             }
@@ -298,22 +274,23 @@ namespace CRM.Application.Services.Product_Service
             return productModel;
         }
 
-        public async Task<int> UpdateRecord(ProductViewModel model, CancellationToken ct)
+        public async Task<ServiceResult> UpdateRecord(ProductViewModel model, CancellationToken ct)
         {
             var user = await _workContext.GetCurrentUserAsync();
-            var product = await _context.Product
+            var product = await _unitOfWork.Products.Query()
                 .Include(x => x.ProductAboutItems)
                 .Include(x => x.ProductColors)
                 .Include(x => x.ProductImages)
                 .Include(x => x.ProductReviews)
                 .FirstOrDefaultAsync(x => x.Id == model.Id && x.IsDelete == 0, ct);
 
-            if (product == null) return 0; // Not found
+            if (product == null) return ServiceResult.NotFound("Product not found.");
 
-            var exists = await _context.Product
-                .AnyAsync(x => x.ProductName.Trim().ToLower() == model.ProductName.Trim().ToLower() && x.Id != model.Id && x.IsDelete == 0, ct);
+            var exists = await _unitOfWork.Products.AnyAsync(
+                x => x.ProductName.Trim().ToLower() == model.ProductName.Trim().ToLower()
+                  && x.Id != model.Id && x.IsDelete == 0, ct);
 
-            if (exists) return 1; // Duplicate
+            if (exists) return ServiceResult.Duplicate("Another product with same name exists.");
 
             product.ProductCategoryId = model.ProductCategoryId;
             product.ProductSubCategoryId = model.ProductSubCategoryId;
@@ -329,69 +306,60 @@ namespace CRM.Application.Services.Product_Service
             product.Weight = model.Weight;
             product.Rating = model.Rating;
             product.StockItems = model.StockItems;
-            
-            // Update Related Collections
-            // ProductAboutItems
-            _context.ProductAboutItem.RemoveRange(product.ProductAboutItems);
+
+            _unitOfWork.ProductAboutItems.RemoveRange(product.ProductAboutItems);
             if (model.ProductAboutItems != null && model.ProductAboutItems.Any())
             {
-                foreach (var item in model.ProductAboutItems)
+                product.ProductAboutItems = model.ProductAboutItems.Select(item => new ProductAboutItem
                 {
-                    item.Id = 0; // Reset ID for new insertion
-                    item.ProductId = product.Id; // Ensure FK is correct
-                    if (string.IsNullOrEmpty(item.AboutItem))
-                    {
-                        item.AboutItem = string.IsNullOrEmpty(item.Description) ? item.Name : $"{item.Name}: {item.Description}";
-                    }
-                    product.ProductAboutItems.Add(item);
-                }
+                    ProductId = product.Id,
+                    AboutItem = string.IsNullOrEmpty(item.AboutItem)
+                        ? (string.IsNullOrEmpty(item.Description) ? item.Name : $"{item.Name}: {item.Description}")
+                        : item.AboutItem
+                }).ToList();
             }
 
-            // ProductColors
-            _context.ProductColor.RemoveRange(product.ProductColors);
+            _unitOfWork.ProductColors.RemoveRange(product.ProductColors);
             if (model.ProductColors != null && model.ProductColors.Any())
             {
-                foreach (var item in model.ProductColors)
+                product.ProductColors = model.ProductColors.Select(item => new ProductColor
                 {
-                    item.Id = 0;
-                    item.ProductId = product.Id;
-                    if (string.IsNullOrEmpty(item.Color))
-                    {
-                        item.Color = string.IsNullOrEmpty(item.ColorCode) ? item.Name : $"{item.Name} ({item.ColorCode})";
-                    }
-                    product.ProductColors.Add(item);
-                }
+                    ProductId = product.Id,
+                    Color = string.IsNullOrEmpty(item.Color)
+                        ? (string.IsNullOrEmpty(item.ColorCode) ? item.Name : $"{item.Name} ({item.ColorCode})")
+                        : item.Color
+                }).ToList();
             }
 
-            // ProductImages
-            _context.ProductImage.RemoveRange(product.ProductImages);
+            _unitOfWork.ProductImages.RemoveRange(product.ProductImages);
             if (model.ProductImages != null && model.ProductImages.Any())
             {
-                foreach (var item in model.ProductImages)
+                product.ProductImages = model.ProductImages.Select(item => new ProductImage
                 {
-                    item.Id = 0;
-                    item.ProductId = product.Id;
-                    product.ProductImages.Add(item);
-                }
+                    ProductId = product.Id,
+                    ImageUrl = item.ImageUrl
+                }).ToList();
             }
 
-            // ProductReviews
-            _context.ProductReview.RemoveRange(product.ProductReviews);
+            _unitOfWork.ProductReviews.RemoveRange(product.ProductReviews);
             if (model.ProductReviews != null && model.ProductReviews.Any())
             {
-                foreach (var item in model.ProductReviews)
+                product.ProductReviews = model.ProductReviews.Select(item => new ProductReview
                 {
-                    item.Id = 0;
-                    item.ProductId = product.Id;
-                    product.ProductReviews.Add(item);
-                }
+                    ProductId = product.Id,
+                    UserId = item.UserId,
+                    UserName = item.UserName,
+                    Rating = item.Rating,
+                    Comment = item.Comment,
+                    ReviewDate = item.ReviewDate
+                }).ToList();
             }
 
             product.UpdatedBy = user.FullName;
             product.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(ct);
-            return 2; // Success
+            await _unitOfWork.SaveChangesAsync(ct);
+            return ServiceResult.Ok("Product updated successfully.");
         }
     }
 }

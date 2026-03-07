@@ -1,30 +1,23 @@
+using CRM.Application.Interfaces.Repositories;
 using CRM.Domain.Entities;
-using CRM.Infrastructure;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CRM.Application.Services.ContactInfo_Service
 {
     public class ContactInfoService : IContactInfoService
     {
-        private readonly CrmDbContext _context;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public ContactInfoService(CrmDbContext context)
+        public ContactInfoService(IUnitOfWork unitOfWork)
         {
-            _context = context;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<ContactInfoVm> GetContactInfoAsync()
         {
-            var entity = await _context.ContactInfo.FirstOrDefaultAsync();
+            var entity = await _unitOfWork.ContactInfos.Query().FirstOrDefaultAsync();
             if (entity == null)
-            {
                 return new ContactInfoVm();
-            }
 
             return new ContactInfoVm
             {
@@ -42,11 +35,11 @@ namespace CRM.Application.Services.ContactInfo_Service
 
         public async Task<bool> UpdateContactInfoAsync(ContactInfoVm model)
         {
-            var entity = await _context.ContactInfo.FirstOrDefaultAsync();
+            var entity = await _unitOfWork.ContactInfos.Query().FirstOrDefaultAsync();
             if (entity == null)
             {
                 entity = new ContactInfo();
-                _context.ContactInfo.Add(entity);
+                _unitOfWork.ContactInfos.Add(entity);
             }
 
             entity.Phone1 = model.Phone1;
@@ -59,7 +52,7 @@ namespace CRM.Application.Services.ContactInfo_Service
             entity.BangladeshOffice = model.BangladeshOffice;
             entity.UpdatedAt = DateTime.Now;
 
-            return await _context.SaveChangesAsync() > 0;
+            return await _unitOfWork.SaveChangesAsync() > 0;
         }
     }
 }

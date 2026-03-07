@@ -1,4 +1,3 @@
-
 using CRM.Application.Services.Brand_Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,36 +15,23 @@ namespace CRM.WebAPI.Controllers
         {
             _service = service;
         }
+
         [AllowAnonymous]
         [HttpGet("getlist")]
         public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
         {
-            try
-            {
-                var data = await _service.GetAll(cancellationToken);
-                return Ok(data);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var data = await _service.GetAll(cancellationToken);
+            return Ok(data);
         }
 
         [HttpGet("getById/{id:long}")]
         public async Task<IActionResult> GetById(long id)
         {
-            try
-            {
-                var data = await _service.GetById(id);
-                if (data == null)
-                    return NotFound(new { message = "Brand not found." });
+            var data = await _service.GetById(id);
+            if (data == null)
+                return NotFound(new { message = "Brand not found." });
 
-                return Ok(data);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            return Ok(data);
         }
 
         [HttpPost("add")]
@@ -54,18 +40,11 @@ namespace CRM.WebAPI.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            try
-            {
-                var result = await _service.Add(model, cancellationToken);
-                if (result)
-                    return Ok(new { message = "Brand created successfully." });
+            var result = await _service.Add(model, cancellationToken);
+            if (result)
+                return Ok(new { message = "Brand created successfully." });
 
-                return BadRequest(new { message = "Failed to create brand." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            return BadRequest(new { message = "Failed to create brand." });
         }
 
         [HttpPut("update")]
@@ -74,35 +53,21 @@ namespace CRM.WebAPI.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            try
-            {
-                var result = await _service.Update(model);
-                if (!result)
-                    return NotFound(new { message = "Brand not found." });
+            var result = await _service.Update(model);
+            if (!result)
+                return NotFound(new { message = "Brand not found." });
 
-                return Ok(new { message = "Brand updated successfully." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            return Ok(new { message = "Brand updated successfully." });
         }
 
         [HttpDelete("delete/{id:long}")]
         public async Task<IActionResult> Delete(long id)
         {
-            try
-            {
-                var result = await _service.Delete(id);
-                if (!result)
-                    return NotFound(new { message = "Brand not found." });
+            var result = await _service.Delete(id);
+            if (!result)
+                return NotFound(new { message = "Brand not found." });
 
-                return Ok(new { message = "Brand deleted successfully." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            return Ok(new { message = "Brand deleted successfully." });
         }
     }
 }

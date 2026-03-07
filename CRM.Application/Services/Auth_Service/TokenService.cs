@@ -1,17 +1,13 @@
-﻿using CRM.Domain.Entities.Auth;
-using CRM.Infrastructure;
+using CRM.Application.Interfaces.Repositories;
+using CRM.Domain.Entities.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
-using System;
-using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
-using System.Linq;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace CRM.Application.Services.Auth_Service
 {
@@ -20,21 +16,20 @@ namespace CRM.Application.Services.Auth_Service
         private readonly IConfiguration _config;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<ApplicationRole> _roleManager;
-
-        private readonly CrmDbContext _context;
+        private readonly IUnitOfWork _unitOfWork;
 
         public TokenService(
             IConfiguration config,
-            UserManager<ApplicationUser> userManager, RoleManager<ApplicationRole> roleManager,
-            CrmDbContext context)
+            UserManager<ApplicationUser> userManager,
+            RoleManager<ApplicationRole> roleManager,
+            IUnitOfWork unitOfWork)
         {
             _config = config;
             _userManager = userManager;
             _roleManager = roleManager;
-            _context = context;
+            _unitOfWork = unitOfWork;
         }
 
-        // ===================== ACCESS TOKEN =====================
         public async Task<string> GenerateAccessTokenAsync(ApplicationUser user)
         {
             var userRoles = await _userManager.GetRolesAsync(user);
@@ -58,14 +53,12 @@ namespace CRM.Application.Services.Auth_Service
                 audience: _config["Jwt:Audience"],
                 claims: claims,
                 expires: DateTime.UtcNow.AddMinutes(30),
-                signingCredentials: new SigningCredentials(
-                    key, SecurityAlgorithms.HmacSha256)
+                signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256)
             );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        // ===================== REFRESH TOKEN =====================
         public async Task<UserRefreshToken> GenerateRefreshTokenAsync(string userId)
         {
             var refreshToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
@@ -77,8 +70,8 @@ namespace CRM.Application.Services.Auth_Service
                 ExpiryDate = DateTime.UtcNow.AddDays(7)
             };
 
-            _context.UserRefreshTokens.Add(entity);
-            await _context.SaveChangesAsync();
+            _unitOfWork.UserRefreshTokens.Add(entity);
+            await _unitOfWork.SaveChangesAsync();
 
             return entity;
         }
@@ -86,37 +79,36 @@ namespace CRM.Application.Services.Auth_Service
         public async Task<List<RoleVM>> GetAllRolesAsync()
         {
             return await _roleManager.Roles
-          .Select(role => new RoleVM
-          {
-              Id = role.Id,
-              Name = role.Name!,
-              IsSystem = role.IsSystem,
-          })
-          .OrderBy(x => x.Name)
-          .ToListAsync();
+                .Select(role => new RoleVM
+                {
+                    Id = role.Id,
+                    Name = role.Name!,
+                    IsSystem = role.IsSystem,
+                })
+                .OrderBy(x => x.Name)
+                .ToListAsync();
         }
 
         public async Task<UserRefreshToken> GetRefreshTokenAsync(string refreshtoken)
         {
-            var token = await _context.UserRefreshTokens.AsNoTracking().FirstOrDefaultAsync(h => h.RefreshToken == refreshtoken);
-            return token;
+            return await _unitOfWork.UserRefreshTokens.Query()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(h => h.RefreshToken == refreshtoken);
         }
 
         public async Task<bool> RemoveRefreshTokenAsync(LogOutRequestVM model)
         {
-            // 1. Find the token
-            var token = await _context.UserRefreshTokens.Where(h => h.UserId == model.UserId).ToListAsync();
+            var tokens = await _unitOfWork.UserRefreshTokens.Query()
+                .Where(h => h.UserId == model.UserId)
+                .ToListAsync();
 
-            if (token == null)
-                return false; // token not found
+            if (tokens == null || !tokens.Any())
+                return false;
 
-            // 2. Remove it
-            _context.UserRefreshTokens.RemoveRange(token);
-            await _context.SaveChangesAsync();
+            _unitOfWork.UserRefreshTokens.RemoveRange(tokens);
+            await _unitOfWork.SaveChangesAsync();
 
-            // 3. Return success
             return true;
         }
-
     }
 }

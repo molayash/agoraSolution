@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace CRM.Application.Services.Auth_Service
 {
-    public class AuthService
+    public class AuthService : IAuthService
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ITokenService _tokenService;

@@ -27,7 +27,7 @@ public static class DependencyInjectionExtensions
 
     {
         services.AddScoped<ITokenService, TokenService>();
-        services.AddScoped<AuthService>();
+        services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IWorkContext, WorkContextsService>();
         services.AddScoped<IMenuPermissionService, MenuPermissionService>();
         services.AddScoped<IRolesService, RolesService>();
