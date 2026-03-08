@@ -1,4 +1,4 @@
-using CRM.Application.Common.Pagination;
+﻿using CRM.Application.Common.Pagination;
 using CRM.Application.Services.Order_Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -60,6 +60,20 @@ namespace CRM.WebAPI.Controllers
                 return Ok(new { message = "Order status updated successfully." });
 
             return BadRequest(new { message = "Failed to update order status." });
+        }
+
+        [Authorize]
+        [HttpPut("update-customer-query")]
+        public async Task<IActionResult> UpdateCustomerQuery([FromBody] UpdateCustomerQueryViewModel model, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var result = await _orderService.UpdateCustomerQuery(model, cancellationToken);
+            if (!result)
+                return NotFound(new { message = "Order not found." });
+
+            return Ok(new { message = "Customer query updated successfully." });
         }
 
         [HttpDelete("delete/{id:long}")]

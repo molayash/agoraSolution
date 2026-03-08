@@ -1,13 +1,29 @@
-using QuestPDF.Fluent;
+﻿using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using System.Linq;
 using CRM.Application.Services.Order_Service;
+using System.Net;
+using System.Text.RegularExpressions;
 
 namespace CRM.Application.Services.Email_Service
 {
     public static class OrderPdfGenerator
     {
+        private static string StripHtml(string html)
+        {
+            if (string.IsNullOrWhiteSpace(html))
+                return string.Empty;
+
+            // Replace some block-level tags with line breaks before removing tags.
+            var withBreaks = Regex.Replace(html, "<br\\s*/?>", "\n", RegexOptions.IgnoreCase);
+            withBreaks = Regex.Replace(withBreaks, "</p\\s*>", "\n", RegexOptions.IgnoreCase);
+            withBreaks = Regex.Replace(withBreaks, "</li\\s*>", "\n", RegexOptions.IgnoreCase);
+
+            var noTags = Regex.Replace(withBreaks, "<.*?>", string.Empty);
+            return WebUtility.HtmlDecode(noTags).Trim();
+        }
+
         public static byte[] GenerateOrderRequestPdf(OrderViewModel order)
         {
             var document = Document.Create(container =>
@@ -99,12 +115,14 @@ namespace CRM.Application.Services.Email_Service
                             }
                         });
 
-                        if (!string.IsNullOrEmpty(order.CustomerQuery))
+                        var customerQueryText = StripHtml(order.CustomerQuery);
+
+                        if (!string.IsNullOrWhiteSpace(customerQueryText))
                         {
                             x.Item().PaddingTop(20).Column(c =>
                             {
                                 c.Item().Text("SPECIAL INSTRUCTIONS / CUSTOMER QUERY").SemiBold().FontSize(8).FontColor(Colors.Grey.Medium);
-                                c.Item().Padding(10).Background(Colors.Grey.Lighten4).Text(order.CustomerQuery).Italic();
+                                c.Item().Padding(10).Background(Colors.Grey.Lighten4).Text(customerQueryText).Italic();
                             });
                         }
 

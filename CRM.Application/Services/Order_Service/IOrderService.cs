@@ -1,4 +1,4 @@
-using CRM.Application.Common.Pagination;
+﻿using CRM.Application.Common.Pagination;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,6 +28,11 @@ namespace CRM.Application.Services.Order_Service
         /// </summary>
         /// <returns>2 = Success, 1 = Order not found, 0 = Failed</returns>
         Task<int> UpdateOrderStatus(UpdateOrderStatusViewModel model, CancellationToken ct);
+
+        /// <summary>
+        /// Updates customer query/instructions for an order
+        /// </summary>
+        Task<bool> UpdateCustomerQuery(UpdateCustomerQueryViewModel model, CancellationToken ct);
 
         /// <summary>
         /// Soft deletes an order

@@ -1,4 +1,4 @@
-using CRM.Application.Common.Pagination;
+﻿using CRM.Application.Common.Pagination;
 using CRM.Application.Interfaces.Repositories;
 using CRM.Application.Services.Email_Service;
 using CRM.Domain.Entities;
@@ -173,7 +173,32 @@ namespace CRM.Application.Services.Order_Service
             }
         }
 
-        public async Task<bool> DeleteOrder(long id, CancellationToken ct)
+                public async Task<bool> UpdateCustomerQuery(UpdateCustomerQueryViewModel model, CancellationToken ct)
+        {
+            try
+            {
+                var order = await _unitOfWork.Orders.Query()
+                    .FirstOrDefaultAsync(o => o.Id == model.Id && o.IsDelete == 0, ct);
+
+                if (order == null) return false;
+
+                order.CustomerQuery = string.IsNullOrWhiteSpace(model.CustomerQuery)
+                    ? null
+                    : model.CustomerQuery.Trim();
+                order.UpdatedAt = DateTime.UtcNow;
+
+                _unitOfWork.Orders.Update(order);
+                var result = await _unitOfWork.SaveChangesAsync(ct);
+
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating customer query: {ex.Message}");
+                return false;
+            }
+        }
+public async Task<bool> DeleteOrder(long id, CancellationToken ct)
         {
             try
             {

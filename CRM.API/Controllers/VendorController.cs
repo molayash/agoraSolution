@@ -20,18 +20,32 @@ namespace CRM.WebAPI.Controllers
         [HttpGet("getlist")]
         public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
         {
-            var data = await _service.GetAll(cancellationToken);
-            return Ok(data);
+            try
+            {
+                var data = await _service.GetAll(cancellationToken);
+                return Ok(data);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpGet("getById/{id:long}")]
         public async Task<IActionResult> GetById(long id)
         {
-            var data = await _service.GetById(id);
-            if (data == null)
-                return NotFound(new { message = "Vendor not found." });
+            try
+            {
+                var data = await _service.GetById(id);
+                if (data == null)
+                    return NotFound(new { message = "Vendor not found." });
 
-            return Ok(data);
+                return Ok(data);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPost("add")]
@@ -40,11 +54,21 @@ namespace CRM.WebAPI.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var result = await _service.Add(model, cancellationToken);
-            if (result)
-                return Ok(new { message = "Vendor created successfully." });
-
-            return BadRequest(new { message = "Failed to create vendor." });
+            try
+            {
+                var result = await _service.Add(model, cancellationToken);
+                return Ok(new
+                {
+                    message = "Vendor created successfully.",
+                    vendorId = result.VendorId,
+                    email = result.Email,
+                    temporaryPassword = result.TemporaryPassword
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPut("update")]
@@ -53,21 +77,35 @@ namespace CRM.WebAPI.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var result = await _service.Update(model);
-            if (!result)
-                return NotFound(new { message = "Vendor not found." });
+            try
+            {
+                var result = await _service.Update(model);
+                if (!result)
+                    return NotFound(new { message = "Vendor not found." });
 
-            return Ok(new { message = "Vendor updated successfully." });
+                return Ok(new { message = "Vendor updated successfully." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpDelete("delete/{id:long}")]
         public async Task<IActionResult> Delete(long id)
         {
-            var result = await _service.Delete(id);
-            if (!result)
-                return NotFound(new { message = "Vendor not found." });
+            try
+            {
+                var result = await _service.Delete(id);
+                if (!result)
+                    return NotFound(new { message = "Vendor not found." });
 
-            return Ok(new { message = "Vendor deleted successfully." });
+                return Ok(new { message = "Vendor deleted successfully." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
 }
