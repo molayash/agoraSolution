@@ -33,6 +33,8 @@ public interface IUnitOfWork : IDisposable
     // Order
     IGenericRepository<Order> Orders { get; }
     IGenericRepository<OrderItem> OrderItems { get; }
+    IGenericRepository<OrderVendorForward> OrderVendorForwards { get; }
+    IGenericRepository<OrderVendorComment> OrderVendorComments { get; }
 
     // Vendor
     IGenericRepository<Vendor> Vendors { get; }

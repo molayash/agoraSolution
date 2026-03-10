@@ -1,4 +1,4 @@
-﻿using CRM.Application.Common.Pagination;
+using CRM.Application.Common.Pagination;
 using CRM.Application.Services.Order_Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -107,6 +107,13 @@ namespace CRM.WebAPI.Controllers
             return Ok(data);
         }
 
+        [HttpGet("getmyorders/{userId}")]
+        public async Task<IActionResult> GetMyOrders(string userId, CancellationToken cancellationToken)
+        {
+            var data = await _orderService.GetMyOrders(userId, cancellationToken);
+            return Ok(data);
+        }
+
         [HttpPost("forward-to-vendor")]
         public async Task<IActionResult> ForwardToVendor([FromBody] ForwardOrderViewModel model, CancellationToken cancellationToken)
         {
@@ -118,6 +125,28 @@ namespace CRM.WebAPI.Controllers
                 return Ok(new { message = "Order forwarded to vendor successfully." });
 
             return BadRequest(new { message = "Failed to forward order." });
+        }
+
+        [Authorize]
+        [HttpGet("get-forward-comments/{orderId:long}")]
+        public async Task<IActionResult> GetForwardComments(long orderId, [FromQuery] string? userId, CancellationToken cancellationToken)
+        {
+            var data = await _orderService.GetForwardComments(orderId, userId, cancellationToken);
+            return Ok(data);
+        }
+
+        [Authorize]
+        [HttpPost("add-forward-comment")]
+        public async Task<IActionResult> AddForwardComment([FromBody] CreateOrderVendorCommentViewModel model, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var result = await _orderService.AddForwardComment(model, cancellationToken);
+            if (result)
+                return Ok(new { message = "Comment added successfully." });
+
+            return BadRequest(new { message = "Failed to add the comment." });
         }
     }
 }

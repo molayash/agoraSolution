@@ -115,6 +115,8 @@ namespace CRM.Application.Services.Order_Service
         [Required]
         public long OrderId { get; set; }
         
+        public string? UserId { get; set; }
+        
         [Required]
         public string VendorId { get; set; }
         
@@ -124,5 +126,53 @@ namespace CRM.Application.Services.Order_Service
         
         [Required]
         public string Message { get; set; }
+    }
+
+    public class CreateOrderVendorCommentViewModel
+    {
+        [Required]
+        public long OrderId { get; set; }
+
+        public string? UserId { get; set; }
+
+        public long? VendorId { get; set; }
+
+        [Required]
+        [MaxLength(4000)]
+        public string Message { get; set; } = string.Empty;
+    }
+
+    public class OrderVendorCommentResponseViewModel
+    {
+        public long OrderId { get; set; }
+        public string? OrderNumber { get; set; }
+        public string ViewerRole { get; set; } = "unknown";
+        public List<OrderVendorCommentThreadViewModel> Threads { get; set; } = new();
+    }
+
+    public class OrderVendorCommentThreadViewModel
+    {
+        public long VendorId { get; set; }
+        public string VendorName { get; set; } = string.Empty;
+        public string? VendorEmail { get; set; }
+        public string? VendorCompanyName { get; set; }
+        public DateTime? ForwardedAt { get; set; }
+        public string? ForwardedByName { get; set; }
+        public DateTime? LastCommentAt { get; set; }
+        public int TotalComments { get; set; }
+        public bool CanComment { get; set; } = true;
+        public List<OrderVendorCommentViewModel> Comments { get; set; } = new();
+    }
+
+    public class OrderVendorCommentViewModel
+    {
+        public long Id { get; set; }
+        public long OrderId { get; set; }
+        public long VendorId { get; set; }
+        public string? SenderUserId { get; set; }
+        public string SenderName { get; set; } = string.Empty;
+        public string SenderRole { get; set; } = "admin";
+        public string Message { get; set; } = string.Empty;
+        public DateTime? CreatedAt { get; set; }
     }
 }

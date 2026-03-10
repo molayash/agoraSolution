@@ -38,6 +38,8 @@ public class UnitOfWork : IUnitOfWork
 
         Orders = new GenericRepository<Order>(context);
         OrderItems = new GenericRepository<OrderItem>(context);
+        OrderVendorForwards = new GenericRepository<OrderVendorForward>(context);
+        OrderVendorComments = new GenericRepository<OrderVendorComment>(context);
 
         Vendors = new GenericRepository<Vendor>(context);
     }
@@ -66,6 +68,8 @@ public class UnitOfWork : IUnitOfWork
 
     public IGenericRepository<Order> Orders { get; }
     public IGenericRepository<OrderItem> OrderItems { get; }
+    public IGenericRepository<OrderVendorForward> OrderVendorForwards { get; }
+    public IGenericRepository<OrderVendorComment> OrderVendorComments { get; }
 
     public IGenericRepository<Vendor> Vendors { get; }
 

@@ -100,7 +100,8 @@ namespace CRM.Application.Services.Vendor_Service
                     IsActive = model.IsActive,
                     IsDelete = 0,
                     CreatedBy = currentUser.FullName,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    UserId= vendorUser.Id,
                 };
 
                 await _unitOfWork.Vendors.AddAsync(vendor, cancellationToken);

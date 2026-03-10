@@ -1,4 +1,4 @@
-﻿using CRM.Domain.Entities;
+using CRM.Domain.Entities;
 using CRM.Domain.Entities.Auth;
 using CRM.Infrastructure.data;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -44,6 +44,8 @@ public class CrmDbContext:IdentityDbContext<ApplicationUser, ApplicationRole, st
     public virtual DbSet<ContactMessage> ContactMessages { get; set; }
     public virtual DbSet<Order> Orders { get; set; }
     public virtual DbSet<OrderItem> OrderItems { get; set; }
+    public virtual DbSet<OrderVendorForward> OrderVendorForwards { get; set; }
+    public virtual DbSet<OrderVendorComment> OrderVendorComments { get; set; }
     public virtual DbSet<Vendor> Vendors { get; set; }
 
     #endregion
@@ -91,5 +93,41 @@ public class CrmDbContext:IdentityDbContext<ApplicationUser, ApplicationRole, st
             .WithOne(oi => oi.Order)
             .HasForeignKey(oi => oi.OrderId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<OrderVendorForward>()
+            .HasOne(ovf => ovf.Order)
+            .WithMany()
+            .HasForeignKey(ovf => ovf.OrderId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<OrderVendorForward>()
+            .HasOne(ovf => ovf.Vendor)
+            .WithMany()
+            .HasForeignKey(ovf => ovf.VendorId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<OrderVendorForward>()
+            .HasIndex(ovf => new { ovf.OrderId, ovf.VendorId });
+
+        builder.Entity<OrderVendorComment>()
+            .HasOne(ovc => ovc.Order)
+            .WithMany()
+            .HasForeignKey(ovc => ovc.OrderId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<OrderVendorComment>()
+            .HasOne(ovc => ovc.Vendor)
+            .WithMany()
+            .HasForeignKey(ovc => ovc.VendorId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<OrderVendorComment>()
+            .HasOne(ovc => ovc.OrderVendorForward)
+            .WithMany()
+            .HasForeignKey(ovc => ovc.OrderVendorForwardId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<OrderVendorComment>()
+            .HasIndex(ovc => new { ovc.OrderId, ovc.VendorId, ovc.CreatedAt });
     }
 }
