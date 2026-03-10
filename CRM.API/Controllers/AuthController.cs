@@ -1,20 +1,15 @@
-﻿using CRM.Application.Services.Auth_Service;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Http;
+using CRM.Application.Services.Auth_Service;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Identity;
 
 namespace CRM.WebAPI.Controllers
 {
-
     [ApiController]
     [Route("api/v1/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly AuthService _authService;
+        private readonly IAuthService _authService;
 
-        public AuthController(AuthService authService)
+        public AuthController(IAuthService authService)
         {
             _authService = authService;
         }
@@ -25,15 +20,8 @@ namespace CRM.WebAPI.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            try
-            {
-                var result = await _authService.LoginAsync(model);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return Unauthorized(new { message = ex.Message });
-            }
+            var result = await _authService.LoginAsync(model);
+            return Ok(result);
         }
 
         [HttpPost("logout")]
@@ -55,18 +43,8 @@ namespace CRM.WebAPI.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            try
-            {
-                var result = await _authService.RefreshTokenAsync(model);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return Unauthorized(new { message = ex.Message });
-            }
+            var result = await _authService.RefreshTokenAsync(model);
+            return Ok(result);
         }
-
-
-
     }
 }

@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CRM.WebAPI.Controllers
 {
     [Authorize]
-    [ApiController] 
+    [ApiController]
     [Route("api/v1/[controller]")]
     public class ProductSubCategoryController : ControllerBase
     {
@@ -19,32 +19,18 @@ namespace CRM.WebAPI.Controllers
         [HttpGet("getlist")]
         public async Task<IActionResult> GetAll(CancellationToken ct)
         {
-            try
-            {
-                var result = await _service.GetAll(ct);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var result = await _service.GetAll(ct);
+            return Ok(result);
         }
 
         [HttpGet("getById/{id:long}")]
         public async Task<IActionResult> GetById(long id, CancellationToken ct)
         {
-            try
-            {
-                var data = await _service.GetRecord(id, ct);
-                if (data == null)
-                    return NotFound(new { message = "SubCategory not found." });
+            var data = await _service.GetRecord(id, ct);
+            if (data == null)
+                return NotFound(new { message = "SubCategory not found." });
 
-                return Ok(data);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            return Ok(data);
         }
 
         [HttpPost("add")]
@@ -53,20 +39,11 @@ namespace CRM.WebAPI.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            try
-            {
-                var result = await _service.AddRecord(model, ct);
-                if (result == 2)
-                    return Ok(new { message = "SubCategory created successfully." });
-                else if (result == 1)
-                    return BadRequest(new { message = "SubCategory already exists in this category." });
-                
-                return BadRequest(new { message = "Failed to create subcategory." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var result = await _service.AddRecord(model, ct);
+            if (result.Success)
+                return Ok(new { message = result.Message });
+
+            return BadRequest(new { message = result.Message });
         }
 
         [HttpPut("update")]
@@ -75,65 +52,35 @@ namespace CRM.WebAPI.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            try
-            {
-                var result = await _service.UpdateRecord(model, ct);
-                if (result == 2)
-                    return Ok(new { message = "SubCategory updated successfully." });
-                else if (result == 1)
-                    return BadRequest(new { message = "Another subcategory with same name already exists in this category." });
+            var result = await _service.UpdateRecord(model, ct);
+            if (result.Success)
+                return Ok(new { message = result.Message });
 
-                return BadRequest(new { message = "Failed to update subcategory." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            return BadRequest(new { message = result.Message });
         }
 
         [HttpDelete("delete/{id:long}")]
         public async Task<IActionResult> Delete(long id, CancellationToken ct)
         {
-            try
-            {
-                var result = await _service.DeleteRecord(id, ct);
-                if (!result)
-                    return NotFound(new { message = "SubCategory not found." });
+            var result = await _service.DeleteRecord(id, ct);
+            if (result.Success)
+                return Ok(new { message = result.Message });
 
-                return Ok(new { message = "SubCategory deleted successfully." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            return NotFound(new { message = result.Message });
         }
 
         [HttpGet("getProductTypeWiseList/{id:long}")]
         public async Task<IActionResult> GetProductTypeWiseList(long id, CancellationToken ct)
         {
-            try
-            {
-                var result = await _service.GetProductTypeWiseList(id, ct);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var result = await _service.GetProductTypeWiseList(id, ct);
+            return Ok(result);
         }
 
         [HttpGet("getProductTypeAndCatagoryWiseList")]
         public async Task<IActionResult> GetProductTypeAndCatagoryWiseList(string type, long id, CancellationToken ct)
         {
-            try
-            {
-                var result = await _service.GetProductTypeAndCatagoryWiseList(type, id, ct);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var result = await _service.GetProductTypeAndCatagoryWiseList(type, id, ct);
+            return Ok(result);
         }
     }
 }

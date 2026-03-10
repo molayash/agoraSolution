@@ -29,6 +29,7 @@ namespace CRM.Domain.Entities
 
         [MaxLength(1000)]
         public string? Notes { get; set; }
+        public string? UserId { get; set; }
 
         public bool IsActive { get; set; } = true;
     }

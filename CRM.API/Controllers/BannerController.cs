@@ -20,32 +20,18 @@ namespace CRM.WebAPI.Controllers
         [HttpGet("getlist")]
         public async Task<IActionResult> GetAll(CancellationToken ct)
         {
-            try
-            {
-                var result = await _service.GetAllRecord(ct);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var result = await _service.GetAllRecord(ct);
+            return Ok(result);
         }
 
         [HttpGet("getById/{id:long}")]
         public async Task<IActionResult> GetById(long id, CancellationToken ct)
         {
-            try
-            {
-                var data = await _service.GetRecord(id, ct);
-                if (data == null)
-                    return NotFound(new { message = "Banner not found." });
+            var data = await _service.GetRecord(id, ct);
+            if (data == null)
+                return NotFound(new { message = "Banner not found." });
 
-                return Ok(data);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            return Ok(data);
         }
 
         [HttpPost("add")]
@@ -54,18 +40,11 @@ namespace CRM.WebAPI.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            try
-            {
-                var result = await _service.AddRecord(model, ct);
-                if (result == 2)
-                    return Ok(new { message = "Banner created successfully." });
+            var result = await _service.AddRecord(model, ct);
+            if (result.Success)
+                return Ok(new { message = result.Message });
 
-                return BadRequest(new { message = "Failed to create banner." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            return BadRequest(new { message = result.Message });
         }
 
         [HttpPut("update")]
@@ -74,37 +53,21 @@ namespace CRM.WebAPI.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            try
-            {
-                var result = await _service.UpdateRecord(model, ct);
-                if (result == 2)
-                    return Ok(new { message = "Banner updated successfully." });
-                else if (result == 0)
-                    return NotFound(new { message = "Banner not found." });
+            var result = await _service.UpdateRecord(model, ct);
+            if (result.Success)
+                return Ok(new { message = result.Message });
 
-                return BadRequest(new { message = "Failed to update banner." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            return BadRequest(new { message = result.Message });
         }
 
         [HttpDelete("delete/{id:long}")]
         public async Task<IActionResult> Delete(long id, CancellationToken ct)
         {
-            try
-            {
-                var result = await _service.DeleteRecord(id, ct);
-                if (!result)
-                    return NotFound(new { message = "Banner not found." });
+            var result = await _service.DeleteRecord(id, ct);
+            if (result.Success)
+                return Ok(new { message = result.Message });
 
-                return Ok(new { message = "Banner deleted successfully." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            return NotFound(new { message = result.Message });
         }
     }
 }

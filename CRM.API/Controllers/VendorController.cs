@@ -1,10 +1,6 @@
 using CRM.Application.Services.Vendor_Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace CRM.WebAPI.Controllers
 {
@@ -61,10 +57,13 @@ namespace CRM.WebAPI.Controllers
             try
             {
                 var result = await _service.Add(model, cancellationToken);
-                if (result)
-                    return Ok(new { message = "Vendor created successfully." });
-
-                return BadRequest(new { message = "Failed to create vendor." });
+                return Ok(new
+                {
+                    message = "Vendor created successfully.",
+                    vendorId = result.VendorId,
+                    email = result.Email,
+                    temporaryPassword = result.TemporaryPassword
+                });
             }
             catch (Exception ex)
             {

@@ -1,4 +1,4 @@
-﻿using CRM.Application.Services.ModuleMenu_Service;
+using CRM.Application.Services.ModuleMenu_Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -38,15 +38,8 @@ namespace CRM.WebAPI.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            try
-            {
-                var id = await _service.CreateAsync(model);
-                return Ok(new { message = "Menu created successfully.", id });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var id = await _service.CreateAsync(model);
+            return Ok(new { message = "Menu created successfully.", id });
         }
 
         [HttpPut("update")]
@@ -55,18 +48,11 @@ namespace CRM.WebAPI.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            try
-            {
-                var result = await _service.UpdateAsync(model);
-                if (!result)
-                    return NotFound(new { message = "Menu not found." });
+            var result = await _service.UpdateAsync(model);
+            if (!result)
+                return NotFound(new { message = "Menu not found." });
 
-                return Ok(new { message = "Menu updated successfully." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            return Ok(new { message = "Menu updated successfully." });
         }
 
         [HttpDelete("delete/{id:long}")]

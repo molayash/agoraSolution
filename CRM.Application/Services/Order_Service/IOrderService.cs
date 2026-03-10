@@ -30,6 +30,11 @@ namespace CRM.Application.Services.Order_Service
         Task<int> UpdateOrderStatus(UpdateOrderStatusViewModel model, CancellationToken ct);
 
         /// <summary>
+        /// Updates customer query/instructions for an order
+        /// </summary>
+        Task<bool> UpdateCustomerQuery(UpdateCustomerQueryViewModel model, CancellationToken ct);
+
+        /// <summary>
         /// Soft deletes an order
         /// </summary>
         Task<bool> DeleteOrder(long id, CancellationToken ct);
@@ -50,8 +55,24 @@ namespace CRM.Application.Services.Order_Service
         Task<List<OrderViewModel>> GetOrdersByStatus(string status, CancellationToken ct);
 
         /// <summary>
+        /// Gets orders forwarded to a vendor user
+        /// </summary>
+        Task<List<OrderViewModel>> GetMyOrders(string userId, CancellationToken ct);
+
+        /// <summary>
         /// Forwards an order to a vendor via email (simulated)
         /// </summary>
         Task<bool> ForwardToVendor(ForwardOrderViewModel model, CancellationToken ct);
+
+        /// <summary>
+        /// Gets vendor forward comments for an order.
+        /// Vendor users can only see their own thread, admin can see all.
+        /// </summary>
+        Task<OrderVendorCommentResponseViewModel> GetForwardComments(long orderId, string? userId, CancellationToken ct);
+
+        /// <summary>
+        /// Adds a vendor/admin comment to a forwarded order thread.
+        /// </summary>
+        Task<bool> AddForwardComment(CreateOrderVendorCommentViewModel model, CancellationToken ct);
     }
 }

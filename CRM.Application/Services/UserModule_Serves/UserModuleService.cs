@@ -1,27 +1,25 @@
-﻿using Microsoft.EntityFrameworkCore;
-using CRM.Infrastructure;
+using CRM.Application.Interfaces.Repositories;
 using CRM.Application.Services.UserModule_Serves;
-using CRM.Domain.Entities.Auth;
 using CRM.Application.Services.Work_Context;
+using CRM.Domain.Entities.Auth;
+using Microsoft.EntityFrameworkCore;
 
 namespace Crm.Infrastructure.Services
 {
     public class UserModuleService : IUserModuleService
     {
         private readonly IWorkContext workContext;
-        private readonly CrmDbContext _context;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public UserModuleService(IWorkContext workContext,CrmDbContext context)
+        public UserModuleService(IWorkContext workContext, IUnitOfWork unitOfWork)
         {
             this.workContext = workContext;
-            _context = context;
+            _unitOfWork = unitOfWork;
         }
 
-        // ========================= GET ALL =========================
         public async Task<IEnumerable<UserModuleVM>> GetAllAsync()
         {
-    
-            return await _context.UserModules
+            return await _unitOfWork.UserModules.Query()
                 .AsNoTracking()
                 .Where(x => x.IsDelete == 0)
                 .OrderBy(x => x.SortOrder)
@@ -38,10 +36,9 @@ namespace Crm.Infrastructure.Services
                 .ToListAsync();
         }
 
-        // ========================= GET BY ID =========================
         public async Task<UserModuleVM?> GetByIdAsync(long id)
         {
-            return await _context.UserModules
+            return await _unitOfWork.UserModules.Query()
                 .AsNoTracking()
                 .Where(x => x.Id == id && x.IsDelete == 0)
                 .Select(x => new UserModuleVM
@@ -55,15 +52,12 @@ namespace Crm.Infrastructure.Services
                 .FirstOrDefaultAsync();
         }
 
-        // ========================= CREATE =========================
         public async Task<long> CreateAsync(UserModuleVM model)
         {
             var user = await workContext.CurrentUserAsync();
-            // 🔒 Duplicate check
-            bool exists = await _context.UserModules
-                .AnyAsync(x =>
-                    x.IsDelete == 0 &&
-                    x.ModuleName.ToLower() == model.ModuleName.ToLower());
+
+            bool exists = await _unitOfWork.UserModules.AnyAsync(x =>
+                x.IsDelete == 0 && x.ModuleName.ToLower() == model.ModuleName.ToLower());
 
             if (exists)
                 throw new Exception("Module name already exists.");
@@ -79,27 +73,21 @@ namespace Crm.Infrastructure.Services
                 IsDelete = 0
             };
 
-            _context.UserModules.Add(entity);
-            await _context.SaveChangesAsync();
+            _unitOfWork.UserModules.Add(entity);
+            await _unitOfWork.SaveChangesAsync();
             return entity.Id;
         }
 
-        // ========================= UPDATE =========================
         public async Task<bool> UpdateAsync(UserModuleVM model)
         {
             var user = await workContext.CurrentUserAsync();
-            var entity = await _context.UserModules
+            var entity = await _unitOfWork.UserModules.Query()
                 .FirstOrDefaultAsync(x => x.Id == model.Id && x.IsDelete == 0);
 
-            if (entity == null)
-                return false;
+            if (entity == null) return false;
 
-            // 🔒 Duplicate check (exclude self)
-            bool exists = await _context.UserModules
-                .AnyAsync(x =>
-                    x.Id != model.Id &&
-                    x.IsDelete == 0 &&
-                    x.ModuleName.ToLower() == model.ModuleName.ToLower());
+            bool exists = await _unitOfWork.UserModules.AnyAsync(x =>
+                x.Id != model.Id && x.IsDelete == 0 && x.ModuleName.ToLower() == model.ModuleName.ToLower());
 
             if (exists)
                 throw new Exception("Module name already exists.");
@@ -111,23 +99,21 @@ namespace Crm.Infrastructure.Services
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = user.FullName;
 
-            await _context.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync();
             return true;
         }
 
-        // ========================= DELETE =========================
         public async Task<bool> DeleteAsync(long id)
         {
-            var entity = await _context.UserModules
+            var entity = await _unitOfWork.UserModules.Query()
                 .FirstOrDefaultAsync(x => x.Id == id && x.IsDelete == 0);
 
-            if (entity == null)
-                return false;
+            if (entity == null) return false;
 
             entity.IsDelete = 1;
             entity.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync();
             return true;
         }
     }

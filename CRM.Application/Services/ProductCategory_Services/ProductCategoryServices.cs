@@ -1,6 +1,7 @@
-﻿using CRM.Application.Services.Work_Context;
+using CRM.Application.Common.Result;
+using CRM.Application.Interfaces.Repositories;
+using CRM.Application.Services.Work_Context;
 using CRM.Domain.Entities;
-using CRM.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Application.Services.ProductCategory_Services
@@ -8,25 +9,23 @@ namespace CRM.Application.Services.ProductCategory_Services
     public class ProductCategoryServices : IProductCategoryServices
     {
         private readonly IWorkContext _workContext;
-        private readonly CrmDbContext _context;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public ProductCategoryServices(IWorkContext workContext, CrmDbContext context)
+        public ProductCategoryServices(IWorkContext workContext, IUnitOfWork unitOfWork)
         {
             _workContext = workContext;
-            _context = context;
+            _unitOfWork = unitOfWork;
         }
 
-        // ✅ ADD
-        public async Task<int> AddRecord(ProductCategoryViewModel model, CancellationToken ct)
+        public async Task<ServiceResult> AddRecord(ProductCategoryViewModel model, CancellationToken ct)
         {
             var user = await _workContext.GetCurrentUserAsync();
 
-            var exists = await _context.ProductCategory
-                .AnyAsync(x => x.Name.Trim().ToLower() == model.Name.Trim().ToLower() 
-                            && x.IsDelete == 0, ct);
+            var exists = await _unitOfWork.ProductCategories.AnyAsync(
+                x => x.Name.Trim().ToLower() == model.Name.Trim().ToLower() && x.IsDelete == 0, ct);
 
             if (exists)
-                return 1; // Duplicate
+                return ServiceResult.Duplicate("Category already exists.");
 
             var category = new ProductCategory
             {
@@ -40,18 +39,15 @@ namespace CRM.Application.Services.ProductCategory_Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            await _context.ProductCategory.AddAsync(category, ct);
-            await _context.SaveChangesAsync(ct);
+            await _unitOfWork.ProductCategories.AddAsync(category, ct);
+            await _unitOfWork.SaveChangesAsync(ct);
 
-            return 2; // Success
+            return ServiceResult.Ok("Category created successfully.");
         }
 
-    
-
-        // ✅ GET BY ID
         public async Task<ProductCategoryViewModel> GetRecord(long id, CancellationToken ct)
         {
-            var category = await _context.ProductCategory
+            var category = await _unitOfWork.ProductCategories.Query()
                 .AsNoTracking()
                 .Where(x => x.Id == id && x.IsDelete == 0)
                 .Select(x => new ProductCategoryViewModel
@@ -70,74 +66,72 @@ namespace CRM.Application.Services.ProductCategory_Services
             return category;
         }
 
-        // ✅ UPDATE
-        public async Task<int> UpdateRecord(ProductCategoryViewModel model, CancellationToken ct)
+        public async Task<ServiceResult> UpdateRecord(ProductCategoryViewModel model, CancellationToken ct)
         {
             var user = await _workContext.GetCurrentUserAsync();
 
-            var category = await _context.ProductCategory
+            var category = await _unitOfWork.ProductCategories.Query()
                 .FirstOrDefaultAsync(x => x.Id == model.Id && x.IsDelete == 0, ct);
 
             if (category == null)
-                return 0; // Not found
+                return ServiceResult.NotFound("Category not found.");
 
-            var duplicate = await _context.ProductCategory
-                .AnyAsync(x => x.Name.Trim().ToLower() == model.Name.Trim().ToLower()
-                            && x.Id != model.Id
-                            && x.IsDelete == 0, ct);
+            var duplicate = await _unitOfWork.ProductCategories.AnyAsync(
+                x => x.Name.Trim().ToLower() == model.Name.Trim().ToLower()
+                  && x.Id != model.Id
+                  && x.IsDelete == 0, ct);
 
             if (duplicate)
-                return 1; // Duplicate
+                return ServiceResult.Duplicate("Another category with same name exists.");
 
             category.Name = model.Name.Trim();
             category.Remarks = model.Remarks;
             category.OrderNo = model.OrderNo;
             category.ImageUrl = model.ImageUrl;
-            category.UpdatedBy = user.FullName;
             category.IsShow = model.IsShow;
+            category.UpdatedBy = user.FullName;
             category.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(ct);
+            await _unitOfWork.SaveChangesAsync(ct);
 
-            return 2; // Updated
+            return ServiceResult.Ok("Category updated successfully.");
         }
 
-        // ✅ SOFT DELETE
-        public async Task<bool> DeleteRecord(long id, CancellationToken ct)
+        public async Task<ServiceResult> DeleteRecord(long id, CancellationToken ct)
         {
             var user = await _workContext.GetCurrentUserAsync();
 
-            var category = await _context.ProductCategory
+            var category = await _unitOfWork.ProductCategories.Query()
                 .FirstOrDefaultAsync(x => x.Id == id && x.IsDelete == 0, ct);
 
             if (category == null)
-                return false;
+                return ServiceResult.NotFound("Category not found.");
 
             category.IsDelete = 1;
             category.UpdatedBy = user.FullName;
             category.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(ct);
+            await _unitOfWork.SaveChangesAsync(ct);
 
-            return true;
+            return ServiceResult.Ok("Category deleted successfully.");
         }
 
         public async Task<ProductCategoryViewModel> GetAllRecord(CancellationToken ct)
         {
-            ProductCategoryViewModel model = new ProductCategoryViewModel();
-            model.ProductCategoriesList = await Task.Run(() => (from t1 in _context.ProductCategory
-                                                                where t1.IsDelete==0
-                                                                select new ProductCategoryViewModel
-                                                                {
-                                                                    Id = t1.Id,
-                                                                    Name = t1.Name,
-                                                                    Remarks = t1.Remarks,
-                                                                    OrderNo = t1.OrderNo,
-                                                                    ImageUrl = t1.ImageUrl,
-                                                                    CreatedBy = t1.CreatedBy,
-                                                                    CreatedOn = (DateTime)t1.CreatedAt,
-                                                                    IsShow = t1.IsShow,
-                                                                }).AsQueryable());
+            var model = new ProductCategoryViewModel();
+            model.ProductCategoriesList = (from t1 in _unitOfWork.ProductCategories.Query()
+                                           where t1.IsDelete == 0
+                                           select new ProductCategoryViewModel
+                                           {
+                                               Id = t1.Id,
+                                               Name = t1.Name,
+                                               Remarks = t1.Remarks,
+                                               OrderNo = t1.OrderNo,
+                                               ImageUrl = t1.ImageUrl,
+                                               CreatedBy = t1.CreatedBy,
+                                               CreatedOn = (DateTime)t1.CreatedAt,
+                                               IsShow = t1.IsShow,
+                                           }).AsQueryable();
             return model;
         }
     }
