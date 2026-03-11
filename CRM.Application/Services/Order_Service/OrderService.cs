@@ -648,5 +648,7 @@ public async Task<bool> DeleteOrder(long id, CancellationToken ct)
             var random = new Random().Next(1000, 9999);
             return $"ORD-{timestamp}-{random}";
         }
+
+
     }
 }
