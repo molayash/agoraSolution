@@ -36,6 +36,11 @@ namespace CRM.Application.Services.Product_Service
         public decimal Weight { get; set; }
         public decimal Rating { get; set; }
         public int StockItems { get; set; }
+        public long? VendorId { get; set; }
+        public string? VendorName { get; set; }
+        public string? VendorEmail { get; set; }
+        public string? VendorCompanyName { get; set; }
+        public string ApprovalStatus { get; set; } = "Approved";
 
         public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }
@@ -46,5 +51,11 @@ namespace CRM.Application.Services.Product_Service
         public ICollection<ProductReviewDto> ProductReviews { get; set; } = new List<ProductReviewDto>();
 
         public IQueryable<ProductViewModel>? ProductList { get; set; }
+    }
+
+    public class UpdateProductApprovalStatusViewModel
+    {
+        [Required]
+        public string ApprovalStatus { get; set; } = "Approved";
     }
 }

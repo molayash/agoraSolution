@@ -62,6 +62,19 @@ namespace CRM.WebAPI.Controllers
             return BadRequest(new { message = result.Message });
         }
 
+        [HttpPut("approval/{id:long}")]
+        public async Task<IActionResult> UpdateApprovalStatus(long id, [FromBody] UpdateProductApprovalStatusViewModel model, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var result = await _service.UpdateApprovalStatus(id, model, cancellationToken);
+            if (result.Success)
+                return Ok(new { message = result.Message });
+
+            return BadRequest(new { message = result.Message });
+        }
+
         [HttpDelete("softdelete/{id:long}")]
         public async Task<IActionResult> SoftDelete(long id, CancellationToken cancellationToken)
         {

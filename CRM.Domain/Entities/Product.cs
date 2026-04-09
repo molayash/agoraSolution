@@ -25,6 +25,9 @@ namespace CRM.Domain.Entities
         public decimal Weight { get; set; }
         public decimal Rating { get; set; } = 0;
         public int StockItems { get; set; } = 0;
+        public long? VendorId { get; set; }
+        public Vendor? Vendor { get; set; }
+        public string ApprovalStatus { get; set; } = "Approved";
 
         public ICollection<ProductAboutItem> ProductAboutItems { get; set; }
         public ICollection<ProductColor> ProductColors { get; set; }

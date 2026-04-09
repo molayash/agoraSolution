@@ -4,37 +4,60 @@ using CRM.Application.DTOs.Product;
 using CRM.Application.Interfaces.Medias;
 using CRM.Application.Interfaces.Repositories;
 using CRM.Application.Services.Work_Context;
+using CRM.Domain.Constants;
 using CRM.Domain.Entities;
+using CRM.Domain.Entities.Auth;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Application.Services.Product_Service
 {
     public class ProductService : IProductService
     {
+        private const string AdminRoleName = "Admin";
+
         private readonly IWorkContext _workContext;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMediaService _mediaService;
         private readonly IPaginationService _paginationService;
+        private readonly UserManager<ApplicationUser> _userManager;
 
         public ProductService(
             IWorkContext workContext,
             IUnitOfWork unitOfWork,
             IPaginationService paginationService,
-            IMediaService mediaService)
+            IMediaService mediaService,
+            UserManager<ApplicationUser> userManager)
         {
             _workContext = workContext;
             _unitOfWork = unitOfWork;
             _paginationService = paginationService;
             _mediaService = mediaService;
+            _userManager = userManager;
         }
 
         public async Task<ServiceResult> AddRecord(ProductViewModel model, CancellationToken ct)
         {
-            var user = await _workContext.GetCurrentUserAsync();
-            var exists = await _unitOfWork.Products.AnyAsync(
-                x => x.ProductName.Trim().ToLower() == model.ProductName.Trim().ToLower() && x.IsDelete == 0, ct);
+            var accessContext = await ResolveAccessContextAsync(ct);
+            if (accessContext.User == null)
+                return ServiceResult.Fail("Unauthorized request.");
 
-            if (exists) return ServiceResult.Duplicate("Product already exists.");
+            long vendorId;
+            try
+            {
+                vendorId = await ResolveRequestedVendorIdAsync(model.VendorId, accessContext, ct);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ServiceResult.Fail(ex.Message);
+            }
+
+            if (vendorId == long.MinValue)
+                return ServiceResult.Fail("Only admin or active vendors can manage products.");
+
+            var exists = await ProductNameExistsAsync(model.ProductName, vendorId, null, ct);
+            if (exists)
+                return ServiceResult.Duplicate("Product already exists for this vendor.");
 
             var product = new Product
             {
@@ -52,50 +75,16 @@ namespace CRM.Application.Services.Product_Service
                 Weight = model.Weight,
                 Rating = model.Rating,
                 StockItems = model.StockItems,
+                VendorId = vendorId > 0 ? vendorId : null,
+                ApprovalStatus = accessContext.IsAdmin
+                    ? ProductApprovalStatuses.Normalize(model.ApprovalStatus, ProductApprovalStatuses.Approved)
+                    : ProductApprovalStatuses.Pending,
                 IsDelete = 0,
-                CreatedBy = user.FullName,
+                CreatedBy = accessContext.User.FullName,
                 CreatedAt = DateTime.UtcNow
             };
 
-            if (model.ProductAboutItems != null && model.ProductAboutItems.Any())
-            {
-                product.ProductAboutItems = model.ProductAboutItems.Select(item => new ProductAboutItem
-                {
-                    AboutItem = string.IsNullOrEmpty(item.AboutItem)
-                        ? (string.IsNullOrEmpty(item.Description) ? item.Name : $"{item.Name}: {item.Description}")
-                        : item.AboutItem
-                }).ToList();
-            }
-
-            if (model.ProductColors != null && model.ProductColors.Any())
-            {
-                product.ProductColors = model.ProductColors.Select(item => new ProductColor
-                {
-                    Color = string.IsNullOrEmpty(item.Color)
-                        ? (string.IsNullOrEmpty(item.ColorCode) ? item.Name : $"{item.Name} ({item.ColorCode})")
-                        : item.Color
-                }).ToList();
-            }
-
-            if (model.ProductImages != null && model.ProductImages.Any())
-            {
-                product.ProductImages = model.ProductImages.Select(item => new ProductImage
-                {
-                    ImageUrl = item.ImageUrl
-                }).ToList();
-            }
-
-            if (model.ProductReviews != null && model.ProductReviews.Any())
-            {
-                product.ProductReviews = model.ProductReviews.Select(item => new ProductReview
-                {
-                    UserId = item.UserId,
-                    UserName = item.UserName,
-                    Rating = item.Rating,
-                    Comment = item.Comment,
-                    ReviewDate = item.ReviewDate
-                }).ToList();
-            }
+            ReplaceProductCollections(product, model);
 
             await _unitOfWork.Products.AddAsync(product, ct);
             await _unitOfWork.SaveChangesAsync(ct);
@@ -105,14 +94,21 @@ namespace CRM.Application.Services.Product_Service
 
         public async Task<ServiceResult> DeleteRecord(long id, CancellationToken ct)
         {
-            var user = await _workContext.GetCurrentUserAsync();
+            var accessContext = await ResolveAccessContextAsync(ct);
+            if (accessContext.User == null)
+                return ServiceResult.Fail("Unauthorized request.");
+
             var product = await _unitOfWork.Products.Query()
                 .FirstOrDefaultAsync(x => x.Id == id && x.IsDelete == 0, ct);
 
-            if (product == null) return ServiceResult.NotFound("Product not found.");
+            if (product == null)
+                return ServiceResult.NotFound("Product not found.");
+
+            if (!CanManageProduct(accessContext, product))
+                return ServiceResult.Fail("You do not have permission to delete this product.");
 
             product.IsDelete = 1;
-            product.UpdatedBy = user.FullName;
+            product.UpdatedBy = accessContext.User.FullName;
             product.UpdatedAt = DateTime.UtcNow;
 
             await _unitOfWork.SaveChangesAsync(ct);
@@ -121,90 +117,48 @@ namespace CRM.Application.Services.Product_Service
 
         public async Task<ProductViewModel> GetAll(CancellationToken ct)
         {
-            var query = from p in _unitOfWork.Products.Query().Include(p => p.ProductImages)
-                        join c in _unitOfWork.ProductCategories.Query() on p.ProductCategoryId equals c.Id
-                        join s in _unitOfWork.ProductSubCategories.Query() on p.ProductSubCategoryId equals s.Id
-                        join b in _unitOfWork.Brands.Query() on p.BrandId equals b.Id into brandGroup
-                        from b in brandGroup.DefaultIfEmpty()
-                        where p.IsDelete == 0
-                        select new ProductViewModel
-                        {
-                            Id = p.Id,
-                            ProductCategoryId = p.ProductCategoryId,
-                            ProductCategoryName = c.Name,
-                            ProductSubCategoryId = p.ProductSubCategoryId,
-                            ProductSubCategoryName = s.Name,
-                            BrandId = p.BrandId,
-                            BrandName = b != null ? b.Name : null,
-                            CategoryImageUrl = c.ImageUrl,
-                            SubCategoryImageUrl = s.ImageUrl,
-                            BrandImageUrl = b != null ? b.ImageUrl : null,
-                            ProductCode = p.ProductCode,
-                            ProductName = p.ProductName,
-                            ShortName = p.ShortName,
-                            UnitPrice = p.UnitPrice,
-                            UnitName = p.UnitName,
-                            CostingPrice = p.CostingPrice,
-                            AVGPrice = p.AVGPrice,
-                            MRP = p.MRP,
-                            Weight = p.Weight,
-                            Rating = p.Rating,
-                            StockItems = p.StockItems,
-                            CreatedBy = p.CreatedBy,
-                            CreatedDate = p.CreatedAt,
-                            ProductImageUrl = p.ProductImages.Select(i => i.ImageUrl).FirstOrDefault(),
-                        };
+            var accessContext = await ResolveAccessContextAsync(ct);
+            var query = BuildProductSummaryQuery(accessContext)
+                .OrderByDescending(item => item.Id);
 
-            return new ProductViewModel { ProductList = query.AsQueryable() };
+            return new ProductViewModel { ProductList = query };
         }
 
         public async Task<PaginatedResult<ProductViewModel>> GetPagination(PaginationRequest request, CancellationToken ct)
         {
-            var query = from p in _unitOfWork.Products.Query()
-                        join c in _unitOfWork.ProductCategories.Query() on p.ProductCategoryId equals c.Id
-                        join s in _unitOfWork.ProductSubCategories.Query() on p.ProductSubCategoryId equals s.Id
-                        join b in _unitOfWork.Brands.Query() on p.BrandId equals b.Id into brandGroup
-                        from b in brandGroup.DefaultIfEmpty()
-                        where p.IsDelete == 0
-                        orderby p.Id descending
-                        select new ProductViewModel
-                        {
-                            Id = p.Id,
-                            ProductCategoryId = p.ProductCategoryId,
-                            ProductCategoryName = c.Name,
-                            ProductSubCategoryId = p.ProductSubCategoryId,
-                            ProductSubCategoryName = s.Name,
-                            BrandId = p.BrandId,
-                            BrandName = b != null ? b.Name : null,
-                            CategoryImageUrl = c.ImageUrl,
-                            SubCategoryImageUrl = s.ImageUrl,
-                            BrandImageUrl = b != null ? b.ImageUrl : null,
-                            ProductCode = p.ProductCode,
-                            ProductName = p.ProductName,
-                            ShortName = p.ShortName,
-                            UnitPrice = p.UnitPrice,
-                            UnitName = p.UnitName,
-                            CostingPrice = p.CostingPrice,
-                            AVGPrice = p.AVGPrice,
-                            MRP = p.MRP,
-                            Weight = p.Weight,
-                            Rating = p.Rating,
-                            StockItems = p.StockItems,
-                            CreatedBy = p.CreatedBy,
-                            CreatedDate = p.CreatedAt
-                        };
+            var accessContext = await ResolveAccessContextAsync(ct);
+            var query = BuildProductSummaryQuery(accessContext);
 
+            if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+            {
+                var searchTerm = request.SearchTerm.Trim().ToLower();
+                query = query.Where(item =>
+                    item.ProductName.ToLower().Contains(searchTerm) ||
+                    item.ProductCode.ToLower().Contains(searchTerm) ||
+                    (item.ProductCategoryName ?? string.Empty).ToLower().Contains(searchTerm) ||
+                    (item.ProductSubCategoryName ?? string.Empty).ToLower().Contains(searchTerm) ||
+                    (item.BrandName ?? string.Empty).ToLower().Contains(searchTerm) ||
+                    (item.VendorName ?? string.Empty).ToLower().Contains(searchTerm) ||
+                    (item.VendorCompanyName ?? string.Empty).ToLower().Contains(searchTerm));
+            }
+
+            query = query.OrderByDescending(item => item.Id);
             return await _paginationService.PaginateAsync(query, request, ct);
         }
 
         public async Task<ProductViewModel> GetRecord(long id, CancellationToken ct)
         {
-            var productModel = await (from p in _unitOfWork.Products.Query()
+            var accessContext = await ResolveAccessContextAsync(ct);
+            var filteredProducts = ApplyAccessFilter(_unitOfWork.Products.Query(), accessContext);
+
+            var productModel = await (from p in filteredProducts
                                       join c in _unitOfWork.ProductCategories.Query() on p.ProductCategoryId equals c.Id
                                       join s in _unitOfWork.ProductSubCategories.Query() on p.ProductSubCategoryId equals s.Id
                                       join b in _unitOfWork.Brands.Query() on p.BrandId equals b.Id into brandGroup
                                       from b in brandGroup.DefaultIfEmpty()
-                                      where p.Id == id && p.IsDelete == 0
+                                      join v in _unitOfWork.Vendors.Query().Where(vendor => vendor.IsDelete == 0) on p.VendorId equals (long?)v.Id into vendorGroup
+                                      from v in vendorGroup.DefaultIfEmpty()
+                                      where p.Id == id
                                       select new ProductViewModel
                                       {
                                           Id = p.Id,
@@ -228,8 +182,17 @@ namespace CRM.Application.Services.Product_Service
                                           Weight = p.Weight,
                                           Rating = p.Rating,
                                           StockItems = p.StockItems,
+                                          VendorId = p.VendorId,
+                                          VendorName = v != null ? v.Name : null,
+                                          VendorEmail = v != null ? v.Email : null,
+                                          VendorCompanyName = v != null ? v.CompanyName : null,
+                                          ApprovalStatus = p.ApprovalStatus,
                                           CreatedBy = p.CreatedBy,
                                           CreatedDate = p.CreatedAt,
+                                          ProductImageUrl = p.ProductImages
+                                              .Where(x => x.IsDelete == 0 || x.IsDelete == null)
+                                              .Select(x => x.ImageUrl)
+                                              .FirstOrDefault(),
                                           ProductAboutItems = p.ProductAboutItems
                                               .Where(x => x.IsDelete == 0 || x.IsDelete == null)
                                               .Select(x => new ProductAboutItemDto { Id = x.Id, ProductId = x.ProductId, AboutItem = x.AboutItem })
@@ -276,7 +239,10 @@ namespace CRM.Application.Services.Product_Service
 
         public async Task<ServiceResult> UpdateRecord(ProductViewModel model, CancellationToken ct)
         {
-            var user = await _workContext.GetCurrentUserAsync();
+            var accessContext = await ResolveAccessContextAsync(ct);
+            if (accessContext.User == null)
+                return ServiceResult.Fail("Unauthorized request.");
+
             var product = await _unitOfWork.Products.Query()
                 .Include(x => x.ProductAboutItems)
                 .Include(x => x.ProductColors)
@@ -284,13 +250,28 @@ namespace CRM.Application.Services.Product_Service
                 .Include(x => x.ProductReviews)
                 .FirstOrDefaultAsync(x => x.Id == model.Id && x.IsDelete == 0, ct);
 
-            if (product == null) return ServiceResult.NotFound("Product not found.");
+            if (product == null)
+                return ServiceResult.NotFound("Product not found.");
 
-            var exists = await _unitOfWork.Products.AnyAsync(
-                x => x.ProductName.Trim().ToLower() == model.ProductName.Trim().ToLower()
-                  && x.Id != model.Id && x.IsDelete == 0, ct);
+            if (!CanManageProduct(accessContext, product))
+                return ServiceResult.Fail("You do not have permission to update this product.");
 
-            if (exists) return ServiceResult.Duplicate("Another product with same name exists.");
+            long vendorId;
+            try
+            {
+                vendorId = await ResolveRequestedVendorIdAsync(model.VendorId, accessContext, ct);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ServiceResult.Fail(ex.Message);
+            }
+
+            if (vendorId == long.MinValue)
+                return ServiceResult.Fail("Only admin or active vendors can manage products.");
+
+            var exists = await ProductNameExistsAsync(model.ProductName, vendorId, model.Id, ct);
+            if (exists)
+                return ServiceResult.Duplicate("Another product with same name exists for this vendor.");
 
             product.ProductCategoryId = model.ProductCategoryId;
             product.ProductSubCategoryId = model.ProductSubCategoryId;
@@ -306,45 +287,203 @@ namespace CRM.Application.Services.Product_Service
             product.Weight = model.Weight;
             product.Rating = model.Rating;
             product.StockItems = model.StockItems;
+            product.VendorId = vendorId > 0 ? vendorId : null;
+            product.ApprovalStatus = accessContext.IsAdmin
+                ? ProductApprovalStatuses.Normalize(model.ApprovalStatus, product.ApprovalStatus)
+                : ProductApprovalStatuses.Pending;
 
             _unitOfWork.ProductAboutItems.RemoveRange(product.ProductAboutItems);
-            if (model.ProductAboutItems != null && model.ProductAboutItems.Any())
+            _unitOfWork.ProductColors.RemoveRange(product.ProductColors);
+            _unitOfWork.ProductImages.RemoveRange(product.ProductImages);
+            _unitOfWork.ProductReviews.RemoveRange(product.ProductReviews);
+            ReplaceProductCollections(product, model);
+
+            product.UpdatedBy = accessContext.User.FullName;
+            product.UpdatedAt = DateTime.UtcNow;
+
+            await _unitOfWork.SaveChangesAsync(ct);
+            return ServiceResult.Ok(accessContext.IsAdmin
+                ? "Product updated successfully."
+                : "Product updated and sent for admin approval.");
+        }
+
+        public async Task<ServiceResult> UpdateApprovalStatus(long id, UpdateProductApprovalStatusViewModel model, CancellationToken ct)
+        {
+            var accessContext = await ResolveAccessContextAsync(ct);
+            if (!accessContext.IsAdmin || accessContext.User == null)
+                return ServiceResult.Fail("Only admins can approve vendor products.");
+
+            var product = await _unitOfWork.Products.Query()
+                .FirstOrDefaultAsync(item => item.Id == id && item.IsDelete == 0, ct);
+
+            if (product == null)
+                return ServiceResult.NotFound("Product not found.");
+
+            product.ApprovalStatus = ProductApprovalStatuses.Normalize(model.ApprovalStatus, ProductApprovalStatuses.Approved);
+            product.UpdatedBy = accessContext.User.FullName;
+            product.UpdatedAt = DateTime.UtcNow;
+
+            await _unitOfWork.SaveChangesAsync(ct);
+            return ServiceResult.Ok("Product approval updated successfully.");
+        }
+
+        private IQueryable<ProductViewModel> BuildProductSummaryQuery(ProductAccessContext accessContext)
+        {
+            var filteredProducts = ApplyAccessFilter(_unitOfWork.Products.Query(), accessContext);
+
+            return from p in filteredProducts
+                   join c in _unitOfWork.ProductCategories.Query() on p.ProductCategoryId equals c.Id
+                   join s in _unitOfWork.ProductSubCategories.Query() on p.ProductSubCategoryId equals s.Id
+                   join b in _unitOfWork.Brands.Query() on p.BrandId equals b.Id into brandGroup
+                   from b in brandGroup.DefaultIfEmpty()
+                   join v in _unitOfWork.Vendors.Query().Where(vendor => vendor.IsDelete == 0) on p.VendorId equals (long?)v.Id into vendorGroup
+                   from v in vendorGroup.DefaultIfEmpty()
+                   select new ProductViewModel
+                   {
+                       Id = p.Id,
+                       ProductCategoryId = p.ProductCategoryId,
+                       ProductCategoryName = c.Name,
+                       ProductSubCategoryId = p.ProductSubCategoryId,
+                       ProductSubCategoryName = s.Name,
+                       BrandId = p.BrandId,
+                       BrandName = b != null ? b.Name : null,
+                       CategoryImageUrl = c.ImageUrl,
+                       SubCategoryImageUrl = s.ImageUrl,
+                       BrandImageUrl = b != null ? b.ImageUrl : null,
+                       ProductCode = p.ProductCode,
+                       ProductName = p.ProductName,
+                       ShortName = p.ShortName,
+                       ProductImageUrl = p.ProductImages
+                           .Where(x => x.IsDelete == 0 || x.IsDelete == null)
+                           .Select(x => x.ImageUrl)
+                           .FirstOrDefault(),
+                       UnitPrice = p.UnitPrice,
+                       UnitName = p.UnitName,
+                       CostingPrice = p.CostingPrice,
+                       AVGPrice = p.AVGPrice,
+                       MRP = p.MRP,
+                       Weight = p.Weight,
+                       Rating = p.Rating,
+                       StockItems = p.StockItems,
+                       VendorId = p.VendorId,
+                       VendorName = v != null ? v.Name : null,
+                       VendorEmail = v != null ? v.Email : null,
+                       VendorCompanyName = v != null ? v.CompanyName : null,
+                       ApprovalStatus = p.ApprovalStatus,
+                       CreatedBy = p.CreatedBy,
+                       CreatedDate = p.CreatedAt
+                   };
+        }
+
+        private IQueryable<Product> ApplyAccessFilter(IQueryable<Product> query, ProductAccessContext accessContext)
+        {
+            query = query.Where(item => item.IsDelete == 0);
+
+            if (accessContext.IsAdmin)
+                return query;
+
+            if (accessContext.Vendor != null)
+                return query.Where(item => item.VendorId == accessContext.Vendor.Id);
+
+            return query.Where(item => item.ApprovalStatus == ProductApprovalStatuses.Approved);
+        }
+
+        private async Task<ProductAccessContext> ResolveAccessContextAsync(CancellationToken ct)
+        {
+            var user = await _workContext.CurrentUserAsync();
+            if (user == null)
+                return new ProductAccessContext();
+
+            var isAdmin = await _userManager.IsInRoleAsync(user, AdminRoleName);
+            var vendor = isAdmin
+                ? null
+                : await _unitOfWork.Vendors.Query()
+                    .Where(item => item.IsDelete == 0 && item.IsActive && item.UserId == user.Id)
+                    .FirstOrDefaultAsync(ct);
+
+            return new ProductAccessContext
             {
-                product.ProductAboutItems = model.ProductAboutItems.Select(item => new ProductAboutItem
+                User = user,
+                IsAdmin = isAdmin,
+                Vendor = vendor
+            };
+        }
+
+        private async Task<long> ResolveRequestedVendorIdAsync(long? requestedVendorId, ProductAccessContext accessContext, CancellationToken ct)
+        {
+            if (accessContext.IsAdmin)
+            {
+                if (!requestedVendorId.HasValue || requestedVendorId.Value <= 0)
+                    return 0;
+
+                var vendorExists = await _unitOfWork.Vendors.AnyAsync(
+                    item => item.Id == requestedVendorId.Value && item.IsDelete == 0 && item.IsActive,
+                    ct);
+
+                if (!vendorExists)
+                    throw new InvalidOperationException("Selected vendor is not active.");
+
+                return requestedVendorId.Value;
+            }
+
+            if (accessContext.Vendor != null)
+                return accessContext.Vendor.Id;
+
+            return long.MinValue;
+        }
+
+        private async Task<bool> ProductNameExistsAsync(string productName, long vendorId, long? excludingProductId, CancellationToken ct)
+        {
+            var normalizedName = productName.Trim().ToLower();
+            return await _unitOfWork.Products.AnyAsync(
+                item => item.IsDelete == 0 &&
+                        item.ProductName.Trim().ToLower() == normalizedName &&
+                        (item.VendorId ?? 0) == vendorId &&
+                        (!excludingProductId.HasValue || item.Id != excludingProductId.Value),
+                ct);
+        }
+
+        private static bool CanManageProduct(ProductAccessContext accessContext, Product product)
+        {
+            if (accessContext.IsAdmin)
+                return true;
+
+            return accessContext.Vendor != null && product.VendorId == accessContext.Vendor.Id;
+        }
+
+        private static void ReplaceProductCollections(Product product, ProductViewModel model)
+        {
+            product.ProductAboutItems = model.ProductAboutItems?
+                .Select(item => new ProductAboutItem
                 {
                     ProductId = product.Id,
                     AboutItem = string.IsNullOrEmpty(item.AboutItem)
                         ? (string.IsNullOrEmpty(item.Description) ? item.Name : $"{item.Name}: {item.Description}")
                         : item.AboutItem
-                }).ToList();
-            }
+                })
+                .ToList() ?? new List<ProductAboutItem>();
 
-            _unitOfWork.ProductColors.RemoveRange(product.ProductColors);
-            if (model.ProductColors != null && model.ProductColors.Any())
-            {
-                product.ProductColors = model.ProductColors.Select(item => new ProductColor
+            product.ProductColors = model.ProductColors?
+                .Select(item => new ProductColor
                 {
                     ProductId = product.Id,
                     Color = string.IsNullOrEmpty(item.Color)
                         ? (string.IsNullOrEmpty(item.ColorCode) ? item.Name : $"{item.Name} ({item.ColorCode})")
                         : item.Color
-                }).ToList();
-            }
+                })
+                .ToList() ?? new List<ProductColor>();
 
-            _unitOfWork.ProductImages.RemoveRange(product.ProductImages);
-            if (model.ProductImages != null && model.ProductImages.Any())
-            {
-                product.ProductImages = model.ProductImages.Select(item => new ProductImage
+            product.ProductImages = model.ProductImages?
+                .Where(item => !string.IsNullOrWhiteSpace(item.ImageUrl))
+                .Select(item => new ProductImage
                 {
                     ProductId = product.Id,
                     ImageUrl = item.ImageUrl
-                }).ToList();
-            }
+                })
+                .ToList() ?? new List<ProductImage>();
 
-            _unitOfWork.ProductReviews.RemoveRange(product.ProductReviews);
-            if (model.ProductReviews != null && model.ProductReviews.Any())
-            {
-                product.ProductReviews = model.ProductReviews.Select(item => new ProductReview
+            product.ProductReviews = model.ProductReviews?
+                .Select(item => new ProductReview
                 {
                     ProductId = product.Id,
                     UserId = item.UserId,
@@ -352,14 +491,15 @@ namespace CRM.Application.Services.Product_Service
                     Rating = item.Rating,
                     Comment = item.Comment,
                     ReviewDate = item.ReviewDate
-                }).ToList();
-            }
+                })
+                .ToList() ?? new List<ProductReview>();
+        }
 
-            product.UpdatedBy = user.FullName;
-            product.UpdatedAt = DateTime.UtcNow;
-
-            await _unitOfWork.SaveChangesAsync(ct);
-            return ServiceResult.Ok("Product updated successfully.");
+        private sealed class ProductAccessContext
+        {
+            public ApplicationUser? User { get; init; }
+            public bool IsAdmin { get; init; }
+            public Vendor? Vendor { get; init; }
         }
     }
 }

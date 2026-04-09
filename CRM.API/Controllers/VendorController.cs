@@ -31,6 +31,28 @@ namespace CRM.WebAPI.Controllers
             }
         }
 
+        [AllowAnonymous]
+        [HttpPost("register-request")]
+        public async Task<IActionResult> RegisterRequest([FromBody] VendorRegistrationRequestVm model, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                var vendorId = await _service.SubmitRegistrationRequest(model, cancellationToken);
+                return Ok(new
+                {
+                    message = "Vendor registration request submitted successfully.",
+                    vendorId
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         [HttpGet("getById/{id:long}")]
         public async Task<IActionResult> GetById(long id)
         {
@@ -49,7 +71,7 @@ namespace CRM.WebAPI.Controllers
         }
 
         [HttpPost("add")]
-        public async Task<IActionResult> Create(VendorVm model, CancellationToken cancellationToken)
+        public async Task<IActionResult> Create([FromBody] VendorVm model, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -62,7 +84,7 @@ namespace CRM.WebAPI.Controllers
                     message = "Vendor created successfully.",
                     vendorId = result.VendorId,
                     email = result.Email,
-                    temporaryPassword = result.TemporaryPassword
+                    temporaryPassword = string.IsNullOrWhiteSpace(result.TemporaryPassword) ? null : result.TemporaryPassword
                 });
             }
             catch (Exception ex)
@@ -72,18 +94,19 @@ namespace CRM.WebAPI.Controllers
         }
 
         [HttpPut("update")]
-        public async Task<IActionResult> Update(VendorVm model)
+        public async Task<IActionResult> Update([FromBody] VendorVm model, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
             try
             {
-                var result = await _service.Update(model);
-                if (!result)
-                    return NotFound(new { message = "Vendor not found." });
-
-                return Ok(new { message = "Vendor updated successfully." });
+                var result = await _service.Update(model, cancellationToken);
+                return Ok(new
+                {
+                    message = "Vendor updated successfully.",
+                    temporaryPassword = string.IsNullOrWhiteSpace(result.TemporaryPassword) ? null : result.TemporaryPassword
+                });
             }
             catch (Exception ex)
             {

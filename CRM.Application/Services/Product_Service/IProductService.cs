@@ -11,5 +11,6 @@ namespace CRM.Application.Services.Product_Service
         Task<ServiceResult> AddRecord(ProductViewModel model, CancellationToken ct);
         Task<ServiceResult> UpdateRecord(ProductViewModel model, CancellationToken ct);
         Task<ServiceResult> DeleteRecord(long id, CancellationToken ct);
+        Task<ServiceResult> UpdateApprovalStatus(long id, UpdateProductApprovalStatusViewModel model, CancellationToken ct);
     }
 }

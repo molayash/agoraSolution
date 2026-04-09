@@ -111,6 +111,7 @@ namespace CRM.Application.Services.Order_Service
             return new OrderViewModel { OrderList = orders };
         }
 
+
         public async Task<OrderViewModel> GetOrderById(long id, CancellationToken ct)
         {
             var order = await _unitOfWork.Orders.Query()

@@ -69,6 +69,15 @@ public class CrmDbContext:IdentityDbContext<ApplicationUser, ApplicationRole, st
            .HasForeignKey(p => p.ProductCategoryId)
            .OnDelete(DeleteBehavior.NoAction);
 
+        builder.Entity<Product>()
+            .HasOne(p => p.Vendor)
+            .WithMany()
+            .HasForeignKey(p => p.VendorId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<Product>()
+            .HasIndex(p => new { p.VendorId, p.ApprovalStatus });
+
         builder.Entity<HomeCategoryCollection>()
             .HasOne(h => h.Category)
             .WithMany()

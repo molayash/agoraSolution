@@ -1,9 +1,5 @@
-using System;
-using System.Collections.Generic;
+using CRM.Domain.Constants;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CRM.Domain.Entities
 {
@@ -29,8 +25,12 @@ namespace CRM.Domain.Entities
 
         [MaxLength(1000)]
         public string? Notes { get; set; }
+
         public string? UserId { get; set; }
 
-        public bool IsActive { get; set; } = true;
+        [Required, MaxLength(20)]
+        public string Status { get; set; } = VendorStatuses.Pending;
+
+        public bool IsActive { get; set; } = false;
     }
 }
