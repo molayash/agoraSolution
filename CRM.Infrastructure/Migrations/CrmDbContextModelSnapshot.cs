@@ -1005,6 +1005,11 @@ namespace CRM.Infrastructure.Migrations
                     b.Property<decimal>("AVGPrice")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("ApprovalStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<long>("BrandId")
                         .HasColumnType("bigint");
 
@@ -1062,6 +1067,9 @@ namespace CRM.Infrastructure.Migrations
                         .HasMaxLength(250)
                         .HasColumnType("nvarchar(250)");
 
+                    b.Property<long?>("VendorId")
+                        .HasColumnType("bigint");
+
                     b.Property<decimal>("Weight")
                         .HasColumnType("decimal(18,2)");
 
@@ -1072,6 +1080,8 @@ namespace CRM.Infrastructure.Migrations
                     b.HasIndex("ProductCategoryId");
 
                     b.HasIndex("ProductSubCategoryId");
+
+                    b.HasIndex("VendorId", "ApprovalStatus");
 
                     b.ToTable("Product");
                 });
@@ -1704,11 +1714,18 @@ namespace CRM.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
+                    b.HasOne("CRM.Domain.Entities.Vendor", "Vendor")
+                        .WithMany()
+                        .HasForeignKey("VendorId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.Navigation("Brand");
 
                     b.Navigation("Category");
 
                     b.Navigation("SubCategory");
+
+                    b.Navigation("Vendor");
                 });
 
             modelBuilder.Entity("CRM.Domain.Entities.ProductAboutItem", b =>
