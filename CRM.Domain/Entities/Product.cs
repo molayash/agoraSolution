@@ -29,6 +29,7 @@ namespace CRM.Domain.Entities
         public Vendor? Vendor { get; set; }
         public string ApprovalStatus { get; set; } = "Approved";
 
+
         public ICollection<ProductAboutItem> ProductAboutItems { get; set; }
         public ICollection<ProductColor> ProductColors { get; set; }
         public ICollection<ProductImage> ProductImages { get; set; }
