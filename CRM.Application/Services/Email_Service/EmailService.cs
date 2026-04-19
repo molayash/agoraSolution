@@ -18,8 +18,6 @@ namespace CRM.Application.Services.Email_Service
         public EmailService(IOptions<EmailSettings> emailSettings)
         {
             _emailSettings = emailSettings.Value;
-            // Initialize QuestPDF license (Community)
-            QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
         }
 
         public async Task<bool> SendEmailAsync(string toEmail, string subject, string body, byte[]? attachment = null, string? attachmentName = null)

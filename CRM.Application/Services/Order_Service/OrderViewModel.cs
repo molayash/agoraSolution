@@ -92,6 +92,17 @@ namespace CRM.Application.Services.Order_Service
 
         [MaxLength(500)]
         public string? ImageUrl { get; set; }
+
+        public long? VendorId { get; set; }
+
+        [MaxLength(200)]
+        public string? VendorName { get; set; }
+
+        [MaxLength(150)]
+        public string? VendorEmail { get; set; }
+
+        [MaxLength(250)]
+        public string? VendorCompanyName { get; set; }
     }
 
     public class UpdateOrderStatusViewModel

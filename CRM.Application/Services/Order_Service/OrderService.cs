@@ -121,6 +121,34 @@ namespace CRM.Application.Services.Order_Service
 
             if (order == null) return null;
 
+            var productIds = order.OrderItems
+                .Select(item => item.ProductId)
+                .Distinct()
+                .ToList();
+
+            var vendorByProductId = productIds.Count == 0
+                ? new Dictionary<long, ProductVendorLookup>()
+                : await _unitOfWork.Products.Query()
+                    .Where(product => product.IsDelete == 0 && productIds.Contains(product.Id))
+                    .Select(product => new
+                    {
+                        product.Id,
+                        product.VendorId,
+                        VendorName = product.Vendor != null ? product.Vendor.Name : null,
+                        VendorEmail = product.Vendor != null ? product.Vendor.Email : null,
+                        VendorCompanyName = product.Vendor != null ? product.Vendor.CompanyName : null,
+                    })
+                    .ToDictionaryAsync(
+                        product => product.Id,
+                        product => new ProductVendorLookup
+                        {
+                            VendorId = product.VendorId,
+                            VendorName = product.VendorName,
+                            VendorEmail = product.VendorEmail,
+                            VendorCompanyName = product.VendorCompanyName,
+                        },
+                        ct);
+
             return new OrderViewModel
             {
                 Id = order.Id,
@@ -143,6 +171,10 @@ namespace CRM.Application.Services.Order_Service
                 UpdatedAt = order.UpdatedAt,
                 Items = order.OrderItems.Select(oi => new OrderItemViewModel
                 {
+                    VendorId = vendorByProductId.TryGetValue(oi.ProductId, out var vendorInfo) ? vendorInfo.VendorId : null,
+                    VendorName = vendorByProductId.TryGetValue(oi.ProductId, out vendorInfo) ? vendorInfo.VendorName : null,
+                    VendorEmail = vendorByProductId.TryGetValue(oi.ProductId, out vendorInfo) ? vendorInfo.VendorEmail : null,
+                    VendorCompanyName = vendorByProductId.TryGetValue(oi.ProductId, out vendorInfo) ? vendorInfo.VendorCompanyName : null,
                     Id = oi.Id,
                     ProductId = oi.ProductId,
                     Quantity = oi.Quantity,
@@ -648,6 +680,14 @@ public async Task<bool> DeleteOrder(long id, CancellationToken ct)
             var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
             var random = new Random().Next(1000, 9999);
             return $"ORD-{timestamp}-{random}";
+        }
+
+        private sealed class ProductVendorLookup
+        {
+            public long? VendorId { get; set; }
+            public string? VendorName { get; set; }
+            public string? VendorEmail { get; set; }
+            public string? VendorCompanyName { get; set; }
         }
     }
 }
