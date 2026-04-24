@@ -57,7 +57,11 @@ namespace CRM.Domain.Entities
         [MaxLength(2000)]
         public string? CustomerQuery { get; set; }
 
+        public long? CustomerId { get; set; }
+
         public DateTime OrderDate { get; set; } = DateTime.UtcNow;
+
+        public Customer? Customer { get; set; }
 
         // Navigation property
         public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();

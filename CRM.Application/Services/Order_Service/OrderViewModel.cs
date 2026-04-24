@@ -8,6 +8,9 @@ namespace CRM.Application.Services.Order_Service
     {
         public long Id { get; set; }
         public string? OrderNumber { get; set; }
+        public long? CustomerId { get; set; }
+        public string? CustomerName { get; set; }
+        public string? CustomerEmail { get; set; }
         
         [Required(ErrorMessage = "First name is required")]
         [MaxLength(100)]
@@ -66,6 +69,8 @@ namespace CRM.Application.Services.Order_Service
 
         [Required]
         public List<OrderItemViewModel> Items { get; set; } = new List<OrderItemViewModel>();
+
+        public List<OrderVendorProgressViewModel> VendorProgress { get; set; } = new();
 
         // For list response
         public IQueryable<OrderViewModel>? OrderList { get; set; }
@@ -153,6 +158,20 @@ namespace CRM.Application.Services.Order_Service
         public string Message { get; set; } = string.Empty;
     }
 
+    public class UpdateOrderVendorForwardStatusViewModel
+    {
+        [Required]
+        public long OrderId { get; set; }
+
+        public string? UserId { get; set; }
+
+        public long? VendorId { get; set; }
+
+        [Required]
+        [MaxLength(30)]
+        public string Status { get; set; } = "pending";
+    }
+
     public class OrderVendorCommentResponseViewModel
     {
         public long OrderId { get; set; }
@@ -163,14 +182,21 @@ namespace CRM.Application.Services.Order_Service
 
     public class OrderVendorCommentThreadViewModel
     {
+        public long ForwardId { get; set; }
         public long VendorId { get; set; }
         public string VendorName { get; set; } = string.Empty;
         public string? VendorEmail { get; set; }
         public string? VendorCompanyName { get; set; }
+        public string FulfillmentStatus { get; set; } = "pending";
         public DateTime? ForwardedAt { get; set; }
         public string? ForwardedByName { get; set; }
+        public DateTime? StatusUpdatedAt { get; set; }
+        public string? StatusUpdatedByName { get; set; }
         public DateTime? LastCommentAt { get; set; }
         public int TotalComments { get; set; }
+        public int UnreadComments { get; set; }
+        public bool HasUnreadForward { get; set; }
+        public bool HasUnreadStatusUpdate { get; set; }
         public bool CanComment { get; set; } = true;
         public List<OrderVendorCommentViewModel> Comments { get; set; } = new();
     }
@@ -184,6 +210,48 @@ namespace CRM.Application.Services.Order_Service
         public string SenderName { get; set; } = string.Empty;
         public string SenderRole { get; set; } = "admin";
         public string Message { get; set; } = string.Empty;
+        public DateTime? CreatedAt { get; set; }
+        public bool IsRead { get; set; }
+    }
+
+    public class OrderVendorProgressViewModel
+    {
+        public long ForwardId { get; set; }
+        public long VendorId { get; set; }
+        public string VendorName { get; set; } = string.Empty;
+        public string? VendorEmail { get; set; }
+        public string? VendorCompanyName { get; set; }
+        public string FulfillmentStatus { get; set; } = "pending";
+        public DateTime? ForwardedAt { get; set; }
+        public string? ForwardedByName { get; set; }
+        public DateTime? StatusUpdatedAt { get; set; }
+        public string? StatusUpdatedByName { get; set; }
+        public int TotalComments { get; set; }
+        public int UnreadComments { get; set; }
+        public bool HasUnreadForward { get; set; }
+        public bool HasUnreadStatusUpdate { get; set; }
+    }
+
+    public class OrderVendorNotificationListViewModel
+    {
+        public string ViewerRole { get; set; } = "unknown";
+        public int UnreadCount { get; set; }
+        public List<OrderVendorNotificationViewModel> Items { get; set; } = new();
+    }
+
+    public class OrderVendorNotificationViewModel
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Type { get; set; } = string.Empty;
+        public long OrderId { get; set; }
+        public string? OrderNumber { get; set; }
+        public long VendorId { get; set; }
+        public string VendorName { get; set; } = string.Empty;
+        public string ViewerRole { get; set; } = "unknown";
+        public string Title { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public string? Status { get; set; }
+        public bool IsUnread { get; set; } = true;
         public DateTime? CreatedAt { get; set; }
     }
 }

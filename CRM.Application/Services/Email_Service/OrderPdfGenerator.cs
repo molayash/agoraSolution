@@ -14,6 +14,17 @@ namespace CRM.Application.Services.Email_Service
         public static byte[] GenerateOrderRequestPdf(OrderViewModel order)
         {
             var lines = BuildDocumentLines(order);
+            return BuildPdfFromLines(lines);
+        }
+
+        public static byte[] GenerateCustomerInvoicePdf(OrderViewModel order)
+        {
+            var lines = BuildCustomerInvoiceLines(order);
+            return BuildPdfFromLines(lines);
+        }
+
+        private static byte[] BuildPdfFromLines(List<string> lines)
+        {
             var pages = lines
                 .Chunk(LinesPerPage)
                 .Select(chunk => chunk.ToList())
@@ -37,15 +48,15 @@ namespace CRM.Application.Services.Email_Service
                 $"Order Date      : {order.OrderDate:dd MMM yyyy HH:mm}",
                 $"Status          : {SafeText(order.Status)}",
                 string.Empty,
-                "CUSTOMER DETAILS",
-                new string('-', MaxLineLength),
-                $"Customer Name   : {SafeText($"{order.FirstName} {order.LastName}")}",
-                $"Phone           : {SafeText(order.Phone)}",
-                $"Address         : {SafeText(order.Address)}",
-                $"City            : {SafeText(order.City)}",
-                $"Zip Code        : {SafeText(order.ZipCode)}",
-                $"Country         : {SafeText(order.Country)}",
-                string.Empty,
+                //"CUSTOMER DETAILS",
+                //new string('-', MaxLineLength),
+                //$"Customer Name   : {SafeText($"{order.FirstName} {order.LastName}")}",
+                //$"Phone           : {SafeText(order.Phone)}",
+                //$"Address         : {SafeText(order.Address)}",
+                //$"City            : {SafeText(order.City)}",
+                //$"Zip Code        : {SafeText(order.ZipCode)}",
+                //$"Country         : {SafeText(order.Country)}",
+                //string.Empty,
                 "ITEM DETAILS",
                 new string('-', MaxLineLength),
                 FormatTableHeader(),
@@ -83,6 +94,77 @@ namespace CRM.Application.Services.Email_Service
             lines.Add("Authorized Dispatch");
             lines.Add("Mir Mohammad Faruk");
             lines.Add("Founder & CEO");
+
+            return lines;
+        }
+
+        private static List<string> BuildCustomerInvoiceLines(OrderViewModel order)
+        {
+            var customerName = string.IsNullOrWhiteSpace(order.CustomerName)
+                ? $"{order.FirstName} {order.LastName}".Trim()
+                : order.CustomerName.Trim();
+
+            var customerEmail = string.IsNullOrWhiteSpace(order.CustomerEmail)
+                ? "Not provided"
+                : SafeText(order.CustomerEmail);
+
+            var lines = new List<string>
+            {
+                "AGORA FOOD",
+                "CUSTOMER ORDER INVOICE",
+                new string('=', MaxLineLength),
+                $"Invoice Number  : #{order.OrderNumber ?? order.Id.ToString(CultureInfo.InvariantCulture)}",
+                $"Invoice Date    : {DateTime.UtcNow:dd MMM yyyy HH:mm} UTC",
+                $"Order Date      : {order.OrderDate:dd MMM yyyy HH:mm}",
+                $"Order Status    : {SafeText(order.Status)}",
+                string.Empty,
+                "CUSTOMER DETAILS",
+                new string('-', MaxLineLength),
+                $"Customer Name   : {SafeText(customerName)}",
+                $"Customer Email  : {customerEmail}",
+                $"Phone           : {SafeText(order.Phone)}",
+                $"Address         : {SafeText(order.Address)}",
+                $"City            : {SafeText(order.City)}",
+                $"Zip Code        : {SafeText(order.ZipCode)}",
+                $"Country         : {SafeText(order.Country)}",
+                string.Empty,
+                "ITEM DETAILS",
+                new string('-', MaxLineLength),
+                FormatTableHeader(),
+                new string('-', MaxLineLength)
+            };
+
+            foreach (var item in order.Items ?? new List<OrderItemViewModel>())
+            {
+                lines.Add(FormatTableRow(
+                    SafeText(item.Name),
+                    item.Quantity.ToString(CultureInfo.InvariantCulture),
+                    FormatMoney(item.UnitPrice),
+                    FormatMoney(item.UnitPrice * item.Quantity)));
+            }
+
+            lines.Add(new string('-', MaxLineLength));
+            lines.Add($"Sub Total       : ${FormatMoney(order.SubTotal)}");
+            lines.Add($"Shipping Fee    : ${FormatMoney(order.ShippingFee)}");
+            lines.Add($"Tax             : ${FormatMoney(order.Tax)}");
+            lines.Add($"Grand Total     : ${FormatMoney(order.TotalAmount)}");
+
+            var customerQuery = StripHtml(order.CustomerQuery);
+            if (!string.IsNullOrWhiteSpace(customerQuery))
+            {
+                lines.Add(string.Empty);
+                lines.Add("CUSTOMER NOTES");
+                lines.Add(new string('-', MaxLineLength));
+
+                foreach (var wrappedLine in WrapText(customerQuery, MaxLineLength))
+                    lines.Add(wrappedLine);
+            }
+
+            lines.Add(string.Empty);
+            lines.Add("Thank you for shopping with Agora Food.");
+            lines.Add(new string('=', MaxLineLength));
+            lines.Add("Accounts & Support");
+            lines.Add("Agora Food");
 
             return lines;
         }

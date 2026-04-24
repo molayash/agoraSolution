@@ -38,6 +38,7 @@ public interface IUnitOfWork : IDisposable
 
     // Vendor
     IGenericRepository<Vendor> Vendors { get; }
+    IGenericRepository<Customer> Customers { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

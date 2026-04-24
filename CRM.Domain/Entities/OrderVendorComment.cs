@@ -32,5 +32,9 @@ namespace CRM.Domain.Entities
         [Required]
         [MaxLength(4000)]
         public string Message { get; set; } = string.Empty;
+
+        public DateTime? AdminReadAt { get; set; }
+
+        public DateTime? VendorReadAt { get; set; }
     }
 }

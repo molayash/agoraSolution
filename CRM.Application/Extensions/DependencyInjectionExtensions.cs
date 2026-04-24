@@ -18,6 +18,7 @@ using CRM.Application.Services.ContactMessage_Service;
 using CRM.Application.Services.Order_Service;
 using CRM.Application.Services.Vendor_Service;
 using CRM.Application.Services.Email_Service;
+using CRM.Application.Services.Customer_Service;
 
 namespace CRM.Application.Extensions;
 public static class DependencyInjectionExtensions
@@ -46,6 +47,7 @@ public static class DependencyInjectionExtensions
         services.AddScoped<IContactMessageService, ContactMessageService>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IVendorService, VendorService>();
+        services.AddScoped<ICustomerService, CustomerService>();
         
         // Email Service Configuration
         services.Configure<EmailSettings>(config.GetSection("Email"));

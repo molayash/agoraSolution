@@ -43,7 +43,7 @@ namespace CRM.WebAPI.Controllers
                 var vendorId = await _service.SubmitRegistrationRequest(model, cancellationToken);
                 return Ok(new
                 {
-                    message = "Vendor registration request submitted successfully.",
+                    message = "Vendor registration request submitted successfully. Your login details have been sent to your email, and your account is now awaiting admin approval.",
                     vendorId
                 });
             }

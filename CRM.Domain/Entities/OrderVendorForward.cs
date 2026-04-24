@@ -25,6 +25,22 @@ namespace CRM.Domain.Entities
         [MaxLength(150)]
         public string? VendorEmail { get; set; }
 
+        [Required]
+        [MaxLength(30)]
+        public string FulfillmentStatus { get; set; } = "pending";
+
+        public DateTime? StatusUpdatedAt { get; set; }
+
+        [MaxLength(450)]
+        public string? StatusUpdatedByUserId { get; set; }
+
+        [MaxLength(250)]
+        public string? StatusUpdatedByName { get; set; }
+
+        public DateTime? AdminLastViewedAt { get; set; }
+
+        public DateTime? VendorLastViewedAt { get; set; }
+
         public bool IsSuccess { get; set; }
 
         [MaxLength(2000)]

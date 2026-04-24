@@ -47,6 +47,7 @@ public class CrmDbContext:IdentityDbContext<ApplicationUser, ApplicationRole, st
     public virtual DbSet<OrderVendorForward> OrderVendorForwards { get; set; }
     public virtual DbSet<OrderVendorComment> OrderVendorComments { get; set; }
     public virtual DbSet<Vendor> Vendors { get; set; }
+    public virtual DbSet<Customer> Customers { get; set; }
 
     #endregion
 
@@ -102,6 +103,33 @@ public class CrmDbContext:IdentityDbContext<ApplicationUser, ApplicationRole, st
             .WithOne(oi => oi.Order)
             .HasForeignKey(oi => oi.OrderId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<Customer>()
+            .HasOne(customer => customer.User)
+            .WithMany()
+            .HasForeignKey(customer => customer.UserId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<Customer>()
+            .HasIndex(customer => customer.UserId)
+            .IsUnique();
+
+        builder.Entity<Customer>()
+            .HasIndex(customer => customer.Email)
+            .IsUnique();
+
+        builder.Entity<Customer>()
+            .HasIndex(customer => customer.Phone)
+            .IsUnique();
+
+        builder.Entity<Order>()
+            .HasOne(order => order.Customer)
+            .WithMany(customer => customer.Orders)
+            .HasForeignKey(order => order.CustomerId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<Order>()
+            .HasIndex(order => order.CustomerId);
 
         builder.Entity<OrderVendorForward>()
             .HasOne(ovf => ovf.Order)

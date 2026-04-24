@@ -50,6 +50,11 @@ namespace CRM.Application.Services.Order_Service
         Task<List<OrderViewModel>> GetOrdersByCustomer(string phone, CancellationToken ct);
 
         /// <summary>
+        /// Gets orders by authenticated customer user id.
+        /// </summary>
+        Task<List<OrderViewModel>> GetOrdersByCustomerUserId(string userId, CancellationToken ct);
+
+        /// <summary>
         /// Gets orders by status
         /// </summary>
         Task<List<OrderViewModel>> GetOrdersByStatus(string status, CancellationToken ct);
@@ -68,11 +73,21 @@ namespace CRM.Application.Services.Order_Service
         /// Gets vendor forward comments for an order.
         /// Vendor users can only see their own thread, admin can see all.
         /// </summary>
-        Task<OrderVendorCommentResponseViewModel> GetForwardComments(long orderId, string? userId, CancellationToken ct);
+        Task<OrderVendorCommentResponseViewModel> GetForwardComments(long orderId, string? userId, bool markAsRead, CancellationToken ct);
 
         /// <summary>
         /// Adds a vendor/admin comment to a forwarded order thread.
         /// </summary>
         Task<bool> AddForwardComment(CreateOrderVendorCommentViewModel model, CancellationToken ct);
+
+        /// <summary>
+        /// Updates a forwarded vendor thread status.
+        /// </summary>
+        Task<bool> UpdateForwardStatus(UpdateOrderVendorForwardStatusViewModel model, CancellationToken ct);
+
+        /// <summary>
+        /// Gets role-aware order forward notifications.
+        /// </summary>
+        Task<OrderVendorNotificationListViewModel> GetForwardNotifications(string? userId, bool markAsRead, CancellationToken ct);
     }
 }

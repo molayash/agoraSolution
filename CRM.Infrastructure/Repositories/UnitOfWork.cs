@@ -42,6 +42,7 @@ public class UnitOfWork : IUnitOfWork
         OrderVendorComments = new GenericRepository<OrderVendorComment>(context);
 
         Vendors = new GenericRepository<Vendor>(context);
+        Customers = new GenericRepository<Customer>(context);
     }
 
     public IGenericRepository<UserRefreshToken> UserRefreshTokens { get; }
@@ -72,6 +73,7 @@ public class UnitOfWork : IUnitOfWork
     public IGenericRepository<OrderVendorComment> OrderVendorComments { get; }
 
     public IGenericRepository<Vendor> Vendors { get; }
+    public IGenericRepository<Customer> Customers { get; }
 
     public Task<int> SaveChangesAsync(CancellationToken ct = default)
         => _context.SaveChangesAsync(ct);
