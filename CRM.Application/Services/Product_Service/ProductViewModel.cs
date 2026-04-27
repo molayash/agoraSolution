@@ -36,6 +36,7 @@ namespace CRM.Application.Services.Product_Service
         public decimal Weight { get; set; }
         public decimal Rating { get; set; }
         public int StockItems { get; set; }
+        public bool IsPublish { get; set; } = true;
         public long? VendorId { get; set; }
         public string? VendorName { get; set; }
         public string? VendorEmail { get; set; }
