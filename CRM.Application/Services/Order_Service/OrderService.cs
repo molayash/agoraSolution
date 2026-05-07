@@ -1,5 +1,6 @@
 using CRM.Application.Common.Pagination;
 using CRM.Application.Interfaces.Repositories;
+using CRM.Application.Services.VendorDelivered_Service;
 using CRM.Application.Services.Email_Service;
 using CRM.Application.Services.Work_Context;
 using CRM.Domain.Entities;
@@ -15,6 +16,8 @@ namespace CRM.Application.Services.Order_Service
         private const string ForwardStatusPending = "pending";
         private const string ForwardStatusAccepted = "accepted";
         private const string ForwardStatusProcessing = "processing";
+        private const string ForwardStatusDelivered = "delivered";
+        private const string ForwardStatusLegacyDelivery = "delivery";
         private const string ForwardStatusCancelled = "cancelled";
 
         private const string ViewerRoleAdmin = "admin";
@@ -29,18 +32,25 @@ namespace CRM.Application.Services.Order_Service
             ForwardStatusPending,
             ForwardStatusAccepted,
             ForwardStatusProcessing,
+            ForwardStatusDelivered,
             ForwardStatusCancelled,
         };
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly IEmailService _emailService;
         private readonly IWorkContext _workContext;
+        private readonly IVendorDeliveredService _vendorDeliveredService;
 
-        public OrderService(IUnitOfWork unitOfWork, IEmailService emailService, IWorkContext workContext)
+        public OrderService(
+            IUnitOfWork unitOfWork,
+            IEmailService emailService,
+            IWorkContext workContext,
+            IVendorDeliveredService vendorDeliveredService)
         {
             _unitOfWork = unitOfWork;
             _emailService = emailService;
             _workContext = workContext;
+            _vendorDeliveredService = vendorDeliveredService;
         }
 
         public async Task<int> CreateOrder(OrderViewModel model, CancellationToken ct)
@@ -484,7 +494,7 @@ namespace CRM.Application.Services.Order_Service
             return await _unitOfWork.SaveChangesAsync(ct) > 0;
         }
 
-        public async Task<bool> UpdateForwardStatus(UpdateOrderVendorForwardStatusViewModel model, CancellationToken ct)
+        public async Task<UpdateOrderVendorForwardStatusResultViewModel> UpdateForwardStatus(UpdateOrderVendorForwardStatusViewModel model, CancellationToken ct)
         {
             var currentUser = await _workContext.CurrentUserAsync();
             var resolvedUserId = currentUser?.Id ?? model.UserId;
@@ -492,17 +502,51 @@ namespace CRM.Application.Services.Order_Service
 
             var targetVendorId = ResolveTargetVendorId(vendorUser, model.VendorId);
             if (!targetVendorId.HasValue)
-                return false;
+            {
+                return new UpdateOrderVendorForwardStatusResultViewModel
+                {
+                    Success = false,
+                    Message = "Vendor access was not resolved for this order."
+                };
+            }
 
             var latestForward = await GetLatestForwardAsync(model.OrderId, targetVendorId.Value, ct);
             if (latestForward == null)
-                return false;
+            {
+                return new UpdateOrderVendorForwardStatusResultViewModel
+                {
+                    Success = false,
+                    Message = "Vendor forward thread was not found."
+                };
+            }
 
+            var normalizedStatus = NormalizeForwardStatus(model.Status);
             var now = DateTime.UtcNow;
             var isVendorActor = vendorUser != null;
             var actorName = currentUser?.FullName ?? vendorUser?.Name ?? "Agora Team";
 
-            latestForward.FulfillmentStatus = NormalizeForwardStatus(model.Status);
+            if (latestForward.IsLocked && normalizedStatus != ForwardStatusDelivered)
+            {
+                return new UpdateOrderVendorForwardStatusResultViewModel
+                {
+                    Success = false,
+                    Message = "This vendor order is locked after the delivered workflow started.",
+                    IsLocked = true
+                };
+            }
+
+            if (normalizedStatus == ForwardStatusDelivered)
+            {
+                return await _vendorDeliveredService.MarkVendorDeliveredAsync(
+                    model.OrderId,
+                    targetVendorId.Value,
+                    resolvedUserId,
+                    actorName,
+                    isVendorActor,
+                    ct);
+            }
+
+            latestForward.FulfillmentStatus = normalizedStatus;
             latestForward.StatusUpdatedAt = now;
             latestForward.StatusUpdatedByUserId = resolvedUserId;
             latestForward.StatusUpdatedByName = actorName;
@@ -512,7 +556,17 @@ namespace CRM.Application.Services.Order_Service
             ApplyViewStateAfterActorActivity(latestForward, isVendorActor, now);
 
             _unitOfWork.OrderVendorForwards.Update(latestForward);
-            return await _unitOfWork.SaveChangesAsync(ct) > 0;
+            var updated = await _unitOfWork.SaveChangesAsync(ct) > 0;
+
+            return new UpdateOrderVendorForwardStatusResultViewModel
+            {
+                Success = updated,
+                Message = updated
+                    ? "Vendor forward status updated successfully."
+                    : "Failed to update vendor forward status.",
+                IsLocked = latestForward.IsLocked,
+                RequiresFinalization = false
+            };
         }
 
         public async Task<OrderVendorNotificationListViewModel> GetForwardNotifications(string? userId, bool markAsRead, CancellationToken ct)
@@ -678,12 +732,24 @@ namespace CRM.Application.Services.Order_Service
 
             var vendorIds = latestForwards.Select(item => item.VendorId).Distinct().ToList();
             var comments = await LoadCommentsAsync(orderId, vendorIds, ct);
+            var deliveredLookup = await _unitOfWork.VendorDelivereds.Query()
+                .Where(item => item.OrderId == orderId && item.IsDelete == 0 && vendorIds.Contains(item.VendorId))
+                .Select(item => new
+                {
+                    item.Id,
+                    item.VendorId,
+                    item.IsFinalized,
+                    item.ShipmentStatus
+                })
+                .ToDictionaryAsync(item => item.VendorId, item => item, ct);
             var isVendorViewer = vendorFilterId.HasValue;
 
             return latestForwards
                 .Select(forward =>
                 {
                     var vendorComments = comments.Where(comment => comment.VendorId == forward.VendorId).ToList();
+                    deliveredLookup.TryGetValue(forward.VendorId, out var delivered);
+
                     return new OrderVendorProgressViewModel
                     {
                         ForwardId = forward.Id,
@@ -692,6 +758,10 @@ namespace CRM.Application.Services.Order_Service
                         VendorEmail = forward.VendorEmail,
                         VendorCompanyName = forward.Vendor?.CompanyName,
                         FulfillmentStatus = NormalizeForwardStatus(forward.FulfillmentStatus),
+                        IsLocked = forward.IsLocked,
+                        VendorDeliveredId = delivered?.Id,
+                        VendorDeliveredFinalized = delivered?.IsFinalized ?? false,
+                        VendorDeliveredShipmentStatus = delivered?.ShipmentStatus,
                         ForwardedAt = forward.CreatedAt,
                         ForwardedByName = forward.ForwardedByName,
                         StatusUpdatedAt = forward.StatusUpdatedAt,
@@ -905,8 +975,12 @@ namespace CRM.Application.Services.Order_Service
 
         private static string NormalizeForwardStatus(string? status)
         {
+            var normalized = status?.Trim();
+            if (string.Equals(normalized, ForwardStatusLegacyDelivery, StringComparison.OrdinalIgnoreCase))
+                return ForwardStatusDelivered;
+
             var match = AllowedForwardStatuses.FirstOrDefault(item =>
-                string.Equals(item, status?.Trim(), StringComparison.OrdinalIgnoreCase));
+                string.Equals(item, normalized, StringComparison.OrdinalIgnoreCase));
 
             return match ?? ForwardStatusPending;
         }

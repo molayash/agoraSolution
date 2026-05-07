@@ -41,6 +41,8 @@ namespace CRM.Domain.Entities
 
         public DateTime? VendorLastViewedAt { get; set; }
 
+        public bool IsLocked { get; set; }
+
         public bool IsSuccess { get; set; }
 
         [MaxLength(2000)]

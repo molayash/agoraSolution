@@ -4,6 +4,7 @@ using CRM.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CRM.Infrastructure.Migrations
 {
     [DbContext(typeof(CrmDbContext))]
-    partial class CrmDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260427050525_AddDeliveryWorkflow")]
+    partial class AddDeliveryWorkflow
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -156,7 +159,7 @@ namespace CRM.Infrastructure.Migrations
                             Id = "ADMIN-USER-001",
                             AccessFailedCount = 0,
                             ConcurrencyStamp = "ADMIN_CONCURRENCY_STAMP",
-                            CreatedDate = new DateTime(2026, 4, 30, 6, 44, 37, 383, DateTimeKind.Utc).AddTicks(6392),
+                            CreatedDate = new DateTime(2026, 4, 27, 5, 5, 22, 314, DateTimeKind.Utc).AddTicks(282),
                             Email = "admin@crm.com",
                             EmailConfirmed = true,
                             EntryBy = "SYSTEM",
@@ -578,7 +581,7 @@ namespace CRM.Infrastructure.Migrations
                         {
                             Id = 1L,
                             BangladeshOffice = "59/4/2 North Basabo, Dhaka-1214, Bangladesh",
-                            CreatedAt = new DateTime(2026, 4, 30, 6, 44, 37, 383, DateTimeKind.Utc).AddTicks(6451),
+                            CreatedAt = new DateTime(2026, 4, 27, 5, 5, 22, 314, DateTimeKind.Utc).AddTicks(348),
                             Email1 = "mf@plan365.dk",
                             Email2 = "mmfaruk@mfcon.dk",
                             HeadOffice = "Vognmandsmarken 45, 2mf, 2100 Copenhagen, Denmark",
@@ -722,6 +725,170 @@ namespace CRM.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Customers");
+                });
+
+            modelBuilder.Entity("CRM.Domain.Entities.Delivery", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("AdminCharge")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<decimal>("CustomerCharge")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("CustomerConfirmationNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("CustomerConfirmationStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime?>("CustomerConfirmedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CustomerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("DeliveryStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("EstimatedDeliveryDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("InternalNote")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<int?>("IsDelete")
+                        .HasColumnType("int");
+
+                    b.Property<long>("OrderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("OrderNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("RequiresCustomerConfirmation")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ShipmentCarrier")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime?>("ShipmentDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ShipmentNote")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("ShipmentReference")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("TrackingNumber")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<long>("VendorId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("VendorId");
+
+                    b.HasIndex("OrderId", "VendorId");
+
+                    b.ToTable("Deliveries");
+                });
+
+            modelBuilder.Entity("CRM.Domain.Entities.DeliveryDetail", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<long>("DeliveryId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("IsDelete")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("LineTotal")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<long>("OrderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("OrderItemId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ProductId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("OrderItemId");
+
+                    b.HasIndex("DeliveryId", "OrderItemId");
+
+                    b.ToTable("DeliveryDetails");
                 });
 
             modelBuilder.Entity("CRM.Domain.Entities.HomeCategoryCollection", b =>
@@ -1065,9 +1232,6 @@ namespace CRM.Infrastructure.Migrations
 
                     b.Property<int?>("IsDelete")
                         .HasColumnType("int");
-
-                    b.Property<bool>("IsLocked")
-                        .HasColumnType("bit");
 
                     b.Property<bool>("IsSuccess")
                         .HasColumnType("bit");
@@ -1549,155 +1713,6 @@ namespace CRM.Infrastructure.Migrations
                     b.ToTable("Vendors");
                 });
 
-            modelBuilder.Entity("CRM.Domain.Entities.VendorDelivered", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasMaxLength(250)
-                        .HasColumnType("nvarchar(250)");
-
-                    b.Property<decimal>("DiscountAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int?>("IsDelete")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsFinalized")
-                        .HasColumnType("bit");
-
-                    b.Property<long>("OrderId")
-                        .HasColumnType("bigint");
-
-                    b.Property<decimal>("ShipmentCharge")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("ShipmentInfo")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<string>("ShipmentProvider")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("ShipmentStatus")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<decimal>("SubTotal")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("TotalAmount")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("decimal(18,2)")
-                        .HasComputedColumnSql("[SubTotal] - [DiscountAmount] + [ShipmentCharge] + [VatAmount]", true);
-
-                    b.Property<string>("TrackingNumber")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasMaxLength(250)
-                        .HasColumnType("nvarchar(250)");
-
-                    b.Property<decimal>("VatAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("VendorDeliveredStringId")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
-                        .HasDefaultValueSql("CONCAT('VDL-', REPLACE(CONVERT(varchar(36), NEWID()), '-', ''))");
-
-                    b.Property<long>("VendorId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VendorDeliveredStringId")
-                        .IsUnique();
-
-                    b.HasIndex("VendorId");
-
-                    b.HasIndex("OrderId", "VendorId")
-                        .IsUnique();
-
-                    b.ToTable("VendorDelivereds", t =>
-                        {
-                            t.HasCheckConstraint("CHK_VendorDelivered_Discount", "[DiscountAmount] >= 0");
-
-                            t.HasCheckConstraint("CHK_VendorDelivered_ShipmentCharge", "[ShipmentCharge] >= 0");
-
-                            t.HasCheckConstraint("CHK_VendorDelivered_Vat", "[VatAmount] >= 0");
-                        });
-                });
-
-            modelBuilder.Entity("CRM.Domain.Entities.VendorDeliveredDetail", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasMaxLength(250)
-                        .HasColumnType("nvarchar(250)");
-
-                    b.Property<int?>("IsDelete")
-                        .HasColumnType("int");
-
-                    b.Property<long>("ProductId")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("TotalPrice")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("decimal(18,2)")
-                        .HasComputedColumnSql("[Quantity] * [UnitPrice]", true);
-
-                    b.Property<decimal>("UnitPrice")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasMaxLength(250)
-                        .HasColumnType("nvarchar(250)");
-
-                    b.Property<long>("VendorDeliveredId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VendorDeliveredId");
-
-                    b.ToTable("VendorDeliveredDetails", t =>
-                        {
-                            t.HasCheckConstraint("CHK_VendorDeliveredDetail_Quantity", "[Quantity] > 0");
-
-                            t.HasCheckConstraint("CHK_VendorDeliveredDetail_UnitPrice", "[UnitPrice] >= 0");
-                        });
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.Property<int>("Id")
@@ -1883,6 +1898,58 @@ namespace CRM.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CRM.Domain.Entities.Delivery", b =>
+                {
+                    b.HasOne("CRM.Domain.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("CRM.Domain.Entities.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CRM.Domain.Entities.Vendor", "Vendor")
+                        .WithMany()
+                        .HasForeignKey("VendorId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Order");
+
+                    b.Navigation("Vendor");
+                });
+
+            modelBuilder.Entity("CRM.Domain.Entities.DeliveryDetail", b =>
+                {
+                    b.HasOne("CRM.Domain.Entities.Delivery", "Delivery")
+                        .WithMany("DeliveryDetails")
+                        .HasForeignKey("DeliveryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CRM.Domain.Entities.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("CRM.Domain.Entities.OrderItem", "OrderItem")
+                        .WithMany()
+                        .HasForeignKey("OrderItemId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Delivery");
+
+                    b.Navigation("Order");
+
+                    b.Navigation("OrderItem");
                 });
 
             modelBuilder.Entity("CRM.Domain.Entities.HomeCategoryCollection", b =>
@@ -2078,36 +2145,6 @@ namespace CRM.Infrastructure.Migrations
                     b.Navigation("Category");
                 });
 
-            modelBuilder.Entity("CRM.Domain.Entities.VendorDelivered", b =>
-                {
-                    b.HasOne("CRM.Domain.Entities.Order", "Order")
-                        .WithMany()
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CRM.Domain.Entities.Vendor", "Vendor")
-                        .WithMany()
-                        .HasForeignKey("VendorId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Order");
-
-                    b.Navigation("Vendor");
-                });
-
-            modelBuilder.Entity("CRM.Domain.Entities.VendorDeliveredDetail", b =>
-                {
-                    b.HasOne("CRM.Domain.Entities.VendorDelivered", "VendorDelivered")
-                        .WithMany("Details")
-                        .HasForeignKey("VendorDeliveredId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("VendorDelivered");
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("CRM.Domain.Entities.Auth.ApplicationRole", null)
@@ -2164,6 +2201,11 @@ namespace CRM.Infrastructure.Migrations
                     b.Navigation("Orders");
                 });
 
+            modelBuilder.Entity("CRM.Domain.Entities.Delivery", b =>
+                {
+                    b.Navigation("DeliveryDetails");
+                });
+
             modelBuilder.Entity("CRM.Domain.Entities.HomeCategoryCollection", b =>
                 {
                     b.Navigation("HomeCategoryProducts");
@@ -2183,11 +2225,6 @@ namespace CRM.Infrastructure.Migrations
                     b.Navigation("ProductImages");
 
                     b.Navigation("ProductReviews");
-                });
-
-            modelBuilder.Entity("CRM.Domain.Entities.VendorDelivered", b =>
-                {
-                    b.Navigation("Details");
                 });
 #pragma warning restore 612, 618
         }

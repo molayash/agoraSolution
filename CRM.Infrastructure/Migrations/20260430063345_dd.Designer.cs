@@ -4,6 +4,7 @@ using CRM.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CRM.Infrastructure.Migrations
 {
     [DbContext(typeof(CrmDbContext))]
-    partial class CrmDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260430063345_dd")]
+    partial class dd
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -156,7 +159,7 @@ namespace CRM.Infrastructure.Migrations
                             Id = "ADMIN-USER-001",
                             AccessFailedCount = 0,
                             ConcurrencyStamp = "ADMIN_CONCURRENCY_STAMP",
-                            CreatedDate = new DateTime(2026, 4, 30, 6, 44, 37, 383, DateTimeKind.Utc).AddTicks(6392),
+                            CreatedDate = new DateTime(2026, 4, 30, 6, 33, 41, 756, DateTimeKind.Utc).AddTicks(2725),
                             Email = "admin@crm.com",
                             EmailConfirmed = true,
                             EntryBy = "SYSTEM",
@@ -578,7 +581,7 @@ namespace CRM.Infrastructure.Migrations
                         {
                             Id = 1L,
                             BangladeshOffice = "59/4/2 North Basabo, Dhaka-1214, Bangladesh",
-                            CreatedAt = new DateTime(2026, 4, 30, 6, 44, 37, 383, DateTimeKind.Utc).AddTicks(6451),
+                            CreatedAt = new DateTime(2026, 4, 30, 6, 33, 41, 756, DateTimeKind.Utc).AddTicks(2784),
                             Email1 = "mf@plan365.dk",
                             Email2 = "mmfaruk@mfcon.dk",
                             HeadOffice = "Vognmandsmarken 45, 2mf, 2100 Copenhagen, Denmark",
@@ -1614,19 +1617,17 @@ namespace CRM.Infrastructure.Migrations
                     b.Property<decimal>("VatAmount")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("VendorDeliveredStringId")
+                    b.Property<string>("VendorDeliveredId")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
-                        .HasDefaultValueSql("CONCAT('VDL-', REPLACE(CONVERT(varchar(36), NEWID()), '-', ''))");
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<long>("VendorId")
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("VendorDeliveredStringId")
+                    b.HasIndex("VendorDeliveredId")
                         .IsUnique();
 
                     b.HasIndex("VendorId");

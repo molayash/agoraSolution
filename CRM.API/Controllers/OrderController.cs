@@ -161,10 +161,10 @@ namespace CRM.WebAPI.Controllers
                 return BadRequest(ModelState);
 
             var result = await _orderService.UpdateForwardStatus(model, cancellationToken);
-            if (result)
-                return Ok(new { message = "Vendor forward status updated successfully." });
+            if (result.Success)
+                return Ok(result);
 
-            return BadRequest(new { message = "Failed to update vendor forward status." });
+            return BadRequest(new { message = result.Message });
         }
 
         [Authorize]

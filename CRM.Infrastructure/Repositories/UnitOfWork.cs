@@ -3,6 +3,7 @@ using CRM.Domain.Entities;
 using CRM.Domain.Entities.Auth;
 using MenuRolePermissionsEntity = CRM.Domain.Entities.Auth.MenuRolePermissions;
 using DefultMenuRolePermissionsEntity = CRM.Domain.Entities.Auth.DefultMenuRolePermissions;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace CRM.Infrastructure.Repositories;
 
@@ -40,6 +41,8 @@ public class UnitOfWork : IUnitOfWork
         OrderItems = new GenericRepository<OrderItem>(context);
         OrderVendorForwards = new GenericRepository<OrderVendorForward>(context);
         OrderVendorComments = new GenericRepository<OrderVendorComment>(context);
+        VendorDelivereds = new GenericRepository<VendorDelivered>(context);
+        VendorDeliveredDetails = new GenericRepository<VendorDeliveredDetail>(context);
 
         Vendors = new GenericRepository<Vendor>(context);
         Customers = new GenericRepository<Customer>(context);
@@ -71,9 +74,14 @@ public class UnitOfWork : IUnitOfWork
     public IGenericRepository<OrderItem> OrderItems { get; }
     public IGenericRepository<OrderVendorForward> OrderVendorForwards { get; }
     public IGenericRepository<OrderVendorComment> OrderVendorComments { get; }
+    public IGenericRepository<VendorDelivered> VendorDelivereds { get; }
+    public IGenericRepository<VendorDeliveredDetail> VendorDeliveredDetails { get; }
 
     public IGenericRepository<Vendor> Vendors { get; }
     public IGenericRepository<Customer> Customers { get; }
+
+    public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken ct = default)
+        => _context.Database.BeginTransactionAsync(ct);
 
     public Task<int> SaveChangesAsync(CancellationToken ct = default)
         => _context.SaveChangesAsync(ct);
