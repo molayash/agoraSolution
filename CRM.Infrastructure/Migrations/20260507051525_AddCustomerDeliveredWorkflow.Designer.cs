@@ -4,6 +4,7 @@ using CRM.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CRM.Infrastructure.Migrations
 {
     [DbContext(typeof(CrmDbContext))]
-    partial class CrmDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260507051525_AddCustomerDeliveredWorkflow")]
+    partial class AddCustomerDeliveredWorkflow
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -156,7 +159,7 @@ namespace CRM.Infrastructure.Migrations
                             Id = "ADMIN-USER-001",
                             AccessFailedCount = 0,
                             ConcurrencyStamp = "ADMIN_CONCURRENCY_STAMP",
-                            CreatedDate = new DateTime(2026, 5, 7, 9, 48, 18, 109, DateTimeKind.Utc).AddTicks(8657),
+                            CreatedDate = new DateTime(2026, 5, 7, 5, 15, 22, 115, DateTimeKind.Utc).AddTicks(4521),
                             Email = "admin@crm.com",
                             EmailConfirmed = true,
                             EntryBy = "SYSTEM",
@@ -578,7 +581,7 @@ namespace CRM.Infrastructure.Migrations
                         {
                             Id = 1L,
                             BangladeshOffice = "59/4/2 North Basabo, Dhaka-1214, Bangladesh",
-                            CreatedAt = new DateTime(2026, 5, 7, 9, 48, 18, 109, DateTimeKind.Utc).AddTicks(8732),
+                            CreatedAt = new DateTime(2026, 5, 7, 5, 15, 22, 115, DateTimeKind.Utc).AddTicks(4578),
                             Email1 = "mf@plan365.dk",
                             Email2 = "mmfaruk@mfcon.dk",
                             HeadOffice = "Vognmandsmarken 45, 2mf, 2100 Copenhagen, Denmark",
@@ -739,9 +742,6 @@ namespace CRM.Infrastructure.Migrations
                         .HasMaxLength(250)
                         .HasColumnType("nvarchar(250)");
 
-                    b.Property<long?>("CustomerId")
-                        .HasColumnType("bigint");
-
                     b.Property<decimal>("DiscountAmount")
                         .HasColumnType("decimal(18,2)");
 
@@ -792,11 +792,14 @@ namespace CRM.Infrastructure.Migrations
                     b.Property<decimal>("VatAmount")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<long>("VendorId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("CustomerId");
+                    b.HasIndex("VendorId");
 
-                    b.HasIndex("OrderId")
+                    b.HasIndex("OrderId", "VendorId")
                         .IsUnique();
 
                     b.ToTable("CustomerDelivereds", t =>
@@ -851,19 +854,9 @@ namespace CRM.Infrastructure.Migrations
                         .HasMaxLength(250)
                         .HasColumnType("nvarchar(250)");
 
-                    b.Property<long?>("VendorDeliveredId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long?>("VendorId")
-                        .HasColumnType("bigint");
-
                     b.HasKey("Id");
 
                     b.HasIndex("CustomerDeliveredId");
-
-                    b.HasIndex("VendorDeliveredId");
-
-                    b.HasIndex("VendorId");
 
                     b.ToTable("CustomerDeliveredDetails", t =>
                         {
@@ -2038,20 +2031,21 @@ namespace CRM.Infrastructure.Migrations
 
             modelBuilder.Entity("CRM.Domain.Entities.CustomerDelivered", b =>
                 {
-                    b.HasOne("CRM.Domain.Entities.Customer", "Customer")
-                        .WithMany()
-                        .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("CRM.Domain.Entities.Order", "Order")
                         .WithMany()
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Customer");
+                    b.HasOne("CRM.Domain.Entities.Vendor", "Vendor")
+                        .WithMany()
+                        .HasForeignKey("VendorId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
 
                     b.Navigation("Order");
+
+                    b.Navigation("Vendor");
                 });
 
             modelBuilder.Entity("CRM.Domain.Entities.CustomerDeliveredDetail", b =>

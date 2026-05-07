@@ -4,6 +4,7 @@ using CRM.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CRM.Infrastructure.Migrations
 {
     [DbContext(typeof(CrmDbContext))]
-    partial class CrmDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260507093841_gggggg")]
+    partial class gggggg
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -156,7 +159,7 @@ namespace CRM.Infrastructure.Migrations
                             Id = "ADMIN-USER-001",
                             AccessFailedCount = 0,
                             ConcurrencyStamp = "ADMIN_CONCURRENCY_STAMP",
-                            CreatedDate = new DateTime(2026, 5, 7, 9, 48, 18, 109, DateTimeKind.Utc).AddTicks(8657),
+                            CreatedDate = new DateTime(2026, 5, 7, 9, 38, 38, 99, DateTimeKind.Utc).AddTicks(154),
                             Email = "admin@crm.com",
                             EmailConfirmed = true,
                             EntryBy = "SYSTEM",
@@ -578,7 +581,7 @@ namespace CRM.Infrastructure.Migrations
                         {
                             Id = 1L,
                             BangladeshOffice = "59/4/2 North Basabo, Dhaka-1214, Bangladesh",
-                            CreatedAt = new DateTime(2026, 5, 7, 9, 48, 18, 109, DateTimeKind.Utc).AddTicks(8732),
+                            CreatedAt = new DateTime(2026, 5, 7, 9, 38, 38, 99, DateTimeKind.Utc).AddTicks(284),
                             Email1 = "mf@plan365.dk",
                             Email2 = "mmfaruk@mfcon.dk",
                             HeadOffice = "Vognmandsmarken 45, 2mf, 2100 Copenhagen, Denmark",

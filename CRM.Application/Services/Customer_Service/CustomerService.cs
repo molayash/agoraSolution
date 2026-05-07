@@ -1,3 +1,4 @@
+using CRM.Application.Common.Pagination;
 using CRM.Application.Interfaces.Repositories;
 using CRM.Application.Services.Auth_Service;
 using CRM.Application.Services.Order_Service;
@@ -154,6 +155,42 @@ namespace CRM.Application.Services.Customer_Service
             return MapProfile(customer);
         }
 
+        public async Task<CustomerProfileVm> UpdateByAdminAsync(UpdateCustomerAdminVm model, CancellationToken cancellationToken)
+        {
+            NormalizeAdminUpdateModel(model);
+            var customer = await _unitOfWork.Customers.Query()
+                .FirstOrDefaultAsync(item => item.Id == model.Id && item.IsDelete == 0, cancellationToken)
+                ?? throw new Exception("Customer not found.");
+            await EnsureCustomerEmailAvailableAsync(model.Email, customer.Id, customer.UserId, cancellationToken);
+            await EnsureCustomerPhoneAvailableAsync(model.Phone, customer.Id, cancellationToken);
+            customer.FirstName = model.FirstName;
+            customer.LastName = model.LastName;
+            customer.Email = model.Email;
+            customer.Phone = model.Phone;
+            customer.Address = model.Address;
+            customer.City = model.City;
+            customer.ZipCode = model.ZipCode;
+            customer.Country = model.Country;
+            customer.IsActive = model.IsActive;
+            customer.UpdatedAt = DateTime.UtcNow;
+            customer.UpdatedBy = "Admin";
+            var user = await _userManager.FindByIdAsync(customer.UserId)
+                ?? throw new Exception("Customer user account not found.");
+            user.Email = model.Email;
+            user.UserName = model.Email;
+            user.NormalizedEmail = model.Email.ToUpperInvariant();
+            user.NormalizedUserName = model.Email.ToUpperInvariant();
+            user.FullName = BuildFullName(model.FirstName, model.LastName);
+            user.PhoneNumber = model.Phone;
+            user.LockoutEnabled = !model.IsActive;
+            user.LockoutEnd = model.IsActive ? null : DateTimeOffset.MaxValue;
+            var updateUserResult = await _userManager.UpdateAsync(user);
+            if (!updateUserResult.Succeeded)
+                throw new Exception(string.Join(" ", updateUserResult.Errors.Select(item => item.Description)));
+            _unitOfWork.Customers.Update(customer);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            return MapProfile(customer);
+        }
         public async Task<List<OrderViewModel>> GetMyOrdersAsync(CancellationToken cancellationToken)
         {
             var currentUser = await _workContext.CurrentUserAsync() ?? throw new Exception("Unauthorized request.");
@@ -189,12 +226,17 @@ namespace CRM.Application.Services.Customer_Service
                     return new CustomerListItemVm
                     {
                         Id = customer.Id,
+                        UserId = customer.UserId,
+                        FirstName = customer.FirstName,
+                        LastName = customer.LastName,
                         FullName = BuildFullName(customer.FirstName, customer.LastName),
                         Email = customer.Email,
                         Phone = customer.Phone,
                         Address = customer.Address,
                         City = customer.City,
+                        ZipCode = customer.ZipCode,
                         Country = customer.Country,
+                        IsActive = customer.IsActive,
                         TotalOrders = customerOrders.Count,
                         TotalSpent = customerOrders.Sum(order => order.TotalAmount),
                         LatestOrderStatus = customerOrders.FirstOrDefault()?.Status ?? "No orders",
@@ -214,6 +256,76 @@ namespace CRM.Application.Services.Customer_Service
             return items.ToList();
         }
 
+        public async Task<PaginatedResult<CustomerListItemVm>> GetPaginationAsync(PaginationRequest request, CancellationToken cancellationToken)
+        {
+            var safePageNumber = request.PageNumber <= 0 ? 1 : request.PageNumber;
+            var safePageSize = request.PageSize <= 0 ? 10 : request.PageSize;
+            var normalizedSearch = string.IsNullOrWhiteSpace(request.SearchTerm)
+                ? null
+                : request.SearchTerm.Trim().ToLowerInvariant();
+            var query = _unitOfWork.Customers.Query()
+                .Where(item => item.IsDelete == 0)
+                .AsQueryable();
+            if (!string.IsNullOrWhiteSpace(normalizedSearch))
+            {
+                query = query.Where(item =>
+                    ((item.FirstName ?? string.Empty) + " " + (item.LastName ?? string.Empty)).Trim().ToLower().Contains(normalizedSearch) ||
+                    (item.Email ?? string.Empty).ToLower().Contains(normalizedSearch) ||
+                    (item.Phone ?? string.Empty).ToLower().Contains(normalizedSearch));
+            }
+            var totalRecords = await query.CountAsync(cancellationToken);
+            var customers = await query
+                .OrderByDescending(item => item.CreatedAt)
+                .Skip((safePageNumber - 1) * safePageSize)
+                .Take(safePageSize)
+                .ToListAsync(cancellationToken);
+            var customerIds = customers.Select(item => item.Id).ToList();
+            var orders = customerIds.Count == 0
+                ? new List<Order>()
+                : await _unitOfWork.Orders.Query()
+                    .Where(item => item.IsDelete == 0 && item.CustomerId.HasValue && customerIds.Contains(item.CustomerId.Value))
+                    .ToListAsync(cancellationToken);
+            var items = customers
+                .Select(customer =>
+                {
+                    var customerOrders = orders
+                        .Where(order => order.CustomerId == customer.Id)
+                        .OrderByDescending(order => order.OrderDate)
+                        .ToList();
+                    return new CustomerListItemVm
+                    {
+                        Id = customer.Id,
+                        UserId = customer.UserId,
+                        FirstName = customer.FirstName,
+                        LastName = customer.LastName,
+                        FullName = BuildFullName(customer.FirstName, customer.LastName),
+                        Email = customer.Email,
+                        Phone = customer.Phone,
+                        Address = customer.Address,
+                        City = customer.City,
+                        ZipCode = customer.ZipCode,
+                        Country = customer.Country,
+                        IsActive = customer.IsActive,
+                        TotalOrders = customerOrders.Count,
+                        TotalSpent = customerOrders.Sum(order => order.TotalAmount),
+                        LatestOrderStatus = customerOrders.FirstOrDefault()?.Status ?? "No orders",
+                        LatestOrderDate = customerOrders.FirstOrDefault()?.OrderDate,
+                        JoinedAt = customer.CreatedAt
+                    };
+                })
+                .ToList();
+            var totalPages = totalRecords == 0 ? 0 : (int)Math.Ceiling(totalRecords / (double)safePageSize);
+            return new PaginatedResult<CustomerListItemVm>
+            {
+                Items = items,
+                TotalCount = totalRecords,
+                PageNumber = safePageNumber,
+                PageSize = safePageSize,
+                TotalPages = totalPages,
+                HasNextPage = safePageNumber < totalPages,
+                HasPreviousPage = safePageNumber > 1
+            };
+        }
         private async Task<Customer> GetCurrentCustomerEntityAsync(CancellationToken cancellationToken)
         {
             var currentUser = await _workContext.CurrentUserAsync() ?? throw new Exception("Unauthorized request.");
@@ -282,6 +394,20 @@ namespace CRM.Application.Services.Customer_Service
             model.Country = NormalizeRequiredText(model.Country, "Country is required.");
         }
 
+        private static void NormalizeAdminUpdateModel(UpdateCustomerAdminVm model)
+        {
+            if (model == null)
+                throw new Exception("Invalid customer data.");
+
+            model.FirstName = NormalizeRequiredText(model.FirstName, "First name is required.");
+            model.LastName = NormalizeRequiredText(model.LastName, "Last name is required.");
+            model.Email = NormalizeRequiredText(model.Email, "Email is required.");
+            model.Phone = NormalizeRequiredText(model.Phone, "Phone is required.");
+            model.Address = NormalizeRequiredText(model.Address, "Address is required.");
+            model.City = NormalizeRequiredText(model.City, "City is required.");
+            model.ZipCode = NormalizeRequiredText(model.ZipCode, "Zip code is required.");
+            model.Country = NormalizeRequiredText(model.Country, "Country is required.");
+        }
         private static void NormalizeProfileModel(UpdateCustomerProfileVm model)
         {
             if (model == null)
@@ -350,3 +476,7 @@ namespace CRM.Application.Services.Customer_Service
         }
     }
 }
+
+
+
+
