@@ -77,6 +77,40 @@ namespace CRM.WebAPI.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+        [Authorize(Roles = "Customer")]
+        [HttpPost("feedback")]
+        public async Task<IActionResult> CreateFeedback([FromBody] CreateCustomerFeedbackVm model, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            try
+            {
+                var result = await _customerService.CreateFeedbackAsync(model, cancellationToken);
+                return Ok(new
+                {
+                    message = "Customer feedback submitted successfully.",
+                    feedback = result
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+        [Authorize(Roles = "Customer")]
+        [HttpGet("my-feedbacks")]
+        public async Task<IActionResult> GetMyFeedbacks(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var result = await _customerService.GetMyFeedbacksAsync(cancellationToken);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
         [Authorize(Roles = "Admin")]
         [HttpGet("getlist")]
         public async Task<IActionResult> GetAll([FromQuery] string? searchTerm, CancellationToken cancellationToken)

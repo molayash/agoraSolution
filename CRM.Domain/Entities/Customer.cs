@@ -48,5 +48,6 @@ namespace CRM.Domain.Entities
         public ApplicationUser? User { get; set; }
 
         public ICollection<Order> Orders { get; set; } = new List<Order>();
+        public ICollection<CustomerFeedback> Feedbacks { get; set; } = new List<CustomerFeedback>();
     }
 }

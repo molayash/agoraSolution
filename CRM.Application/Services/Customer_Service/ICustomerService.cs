@@ -9,6 +9,8 @@ namespace CRM.Application.Services.Customer_Service
         Task<CustomerProfileVm> UpdateCurrentProfileAsync(UpdateCustomerProfileVm model, CancellationToken cancellationToken);
         Task<CustomerProfileVm> UpdateByAdminAsync(UpdateCustomerAdminVm model, CancellationToken cancellationToken);
         Task<List<OrderViewModel>> GetMyOrdersAsync(CancellationToken cancellationToken);
+        Task<CustomerFeedbackVm> CreateFeedbackAsync(CreateCustomerFeedbackVm model, CancellationToken cancellationToken);
+        Task<List<CustomerFeedbackVm>> GetMyFeedbacksAsync(CancellationToken cancellationToken);
         Task<List<CustomerListItemVm>> GetAllAsync(string? searchTerm, CancellationToken cancellationToken);
         Task<PaginatedResult<CustomerListItemVm>> GetPaginationAsync(PaginationRequest request, CancellationToken cancellationToken);
     }

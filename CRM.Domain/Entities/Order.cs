@@ -65,5 +65,6 @@ namespace CRM.Domain.Entities
 
         // Navigation property
         public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
+        public ICollection<CustomerFeedback> CustomerFeedbacks { get; set; } = new List<CustomerFeedback>();
     }
 }

@@ -197,6 +197,67 @@ namespace CRM.Application.Services.Customer_Service
             return await _orderService.GetOrdersByCustomerUserId(currentUser.Id, cancellationToken);
         }
 
+        public async Task<CustomerFeedbackVm> CreateFeedbackAsync(CreateCustomerFeedbackVm model, CancellationToken cancellationToken)
+        {
+            NormalizeFeedbackModel(model);
+
+            var customer = await GetCurrentCustomerEntityAsync(cancellationToken);
+            Order? linkedOrder = null;
+
+            if (model.OrderId.HasValue)
+            {
+                linkedOrder = await _unitOfWork.Orders.Query()
+                    .FirstOrDefaultAsync(
+                        item => item.Id == model.OrderId.Value && item.IsDelete == 0 && item.CustomerId == customer.Id,
+                        cancellationToken)
+                    ?? throw new Exception("The selected order was not found for this customer.");
+            }
+
+            var feedback = new CustomerFeedback
+            {
+                CustomerId = customer.Id,
+                OrderId = model.OrderId,
+                Rating = model.Rating,
+                Subject = model.Subject,
+                Message = model.Message,
+                Status = "new",
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = BuildFullName(customer.FirstName, customer.LastName),
+                IsDelete = 0
+            };
+
+            await _unitOfWork.CustomerFeedbacks.AddAsync(feedback, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapFeedback(feedback, linkedOrder);
+        }
+
+        public async Task<List<CustomerFeedbackVm>> GetMyFeedbacksAsync(CancellationToken cancellationToken)
+        {
+            var customer = await GetCurrentCustomerEntityAsync(cancellationToken);
+
+            var feedbacks = await _unitOfWork.CustomerFeedbacks.Query()
+                .Where(item => item.CustomerId == customer.Id && item.IsDelete == 0)
+                .OrderByDescending(item => item.CreatedAt)
+                .ToListAsync(cancellationToken);
+
+            var orderIds = feedbacks
+                .Where(item => item.OrderId.HasValue)
+                .Select(item => item.OrderId!.Value)
+                .Distinct()
+                .ToList();
+
+            var orders = orderIds.Count == 0
+                ? new Dictionary<long, Order>()
+                : await _unitOfWork.Orders.Query()
+                    .Where(item => orderIds.Contains(item.Id))
+                    .ToDictionaryAsync(item => item.Id, cancellationToken);
+
+            return feedbacks
+                .Select(item => MapFeedback(item, orders.GetValueOrDefault(item.OrderId ?? 0)))
+                .ToList();
+        }
+
         public async Task<List<CustomerListItemVm>> GetAllAsync(string? searchTerm, CancellationToken cancellationToken)
         {
             var normalizedSearch = string.IsNullOrWhiteSpace(searchTerm)
@@ -422,6 +483,18 @@ namespace CRM.Application.Services.Customer_Service
             model.Country = NormalizeRequiredText(model.Country, "Country is required.");
         }
 
+        private static void NormalizeFeedbackModel(CreateCustomerFeedbackVm model)
+        {
+            if (model == null)
+                throw new Exception("Invalid feedback data.");
+
+            if (model.Rating < 1 || model.Rating > 5)
+                throw new Exception("Rating must be between 1 and 5.");
+
+            model.Subject = NormalizeRequiredText(model.Subject, "Subject is required.");
+            model.Message = NormalizeRequiredText(model.Message, "Message is required.");
+        }
+
         private static string NormalizeRequiredText(string? value, string message)
         {
             var normalized = (value ?? string.Empty).Trim();
@@ -451,6 +524,22 @@ namespace CRM.Application.Services.Customer_Service
                 Country = customer.Country,
                 IsActive = customer.IsActive,
                 CreatedAt = customer.CreatedAt
+            };
+        }
+
+        private static CustomerFeedbackVm MapFeedback(CustomerFeedback feedback, Order? order)
+        {
+            return new CustomerFeedbackVm
+            {
+                Id = feedback.Id,
+                CustomerId = feedback.CustomerId,
+                OrderId = feedback.OrderId,
+                OrderNumber = order?.OrderNumber,
+                Rating = feedback.Rating,
+                Subject = feedback.Subject,
+                Message = feedback.Message,
+                Status = feedback.Status,
+                CreatedAt = feedback.CreatedAt
             };
         }
 

@@ -106,6 +106,34 @@ namespace CRM.Application.Services.Customer_Service
         public bool IsActive { get; set; }
         public DateTime? CreatedAt { get; set; }
     }
+    public class CreateCustomerFeedbackVm
+    {
+        public long? OrderId { get; set; }
+
+        [Required(ErrorMessage = "Rating is required.")]
+        [Range(1, 5, ErrorMessage = "Rating must be between 1 and 5.")]
+        public int Rating { get; set; }
+
+        [Required(ErrorMessage = "Subject is required.")]
+        [MaxLength(200)]
+        public string Subject { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Message is required.")]
+        [MaxLength(4000)]
+        public string Message { get; set; } = string.Empty;
+    }
+    public class CustomerFeedbackVm
+    {
+        public long Id { get; set; }
+        public long CustomerId { get; set; }
+        public long? OrderId { get; set; }
+        public string? OrderNumber { get; set; }
+        public int Rating { get; set; }
+        public string Subject { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public DateTime? CreatedAt { get; set; }
+    }
     public class CustomerRegistrationResultVm
     {
         public string Message { get; set; } = string.Empty;

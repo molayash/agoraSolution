@@ -44,6 +44,7 @@ public class CrmDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public virtual DbSet<OrderItem> OrderItems { get; set; }
     public virtual DbSet<OrderVendorForward> OrderVendorForwards { get; set; }
     public virtual DbSet<OrderVendorComment> OrderVendorComments { get; set; }
+    public virtual DbSet<CustomerFeedback> CustomerFeedbacks { get; set; }
     public virtual DbSet<VendorDelivered> VendorDelivereds { get; set; }
     public virtual DbSet<VendorDeliveredDetail> VendorDeliveredDetails { get; set; }
     public virtual DbSet<CustomerDelivered> CustomerDelivereds { get; set; }
@@ -165,6 +166,30 @@ public class CrmDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
 
         builder.Entity<OrderVendorComment>()
             .HasIndex(ovc => new { ovc.OrderId, ovc.VendorId, ovc.CreatedAt });
+
+        builder.Entity<CustomerFeedback>()
+            .HasOne(item => item.Customer)
+            .WithMany(customer => customer.Feedbacks)
+            .HasForeignKey(item => item.CustomerId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<CustomerFeedback>()
+            .HasOne(item => item.Order)
+            .WithMany(order => order.CustomerFeedbacks)
+            .HasForeignKey(item => item.OrderId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<CustomerFeedback>()
+            .HasIndex(item => new { item.CustomerId, item.CreatedAt });
+
+        builder.Entity<CustomerFeedback>()
+            .HasIndex(item => item.OrderId);
+
+        builder.Entity<CustomerFeedback>()
+            .ToTable(table =>
+            {
+                table.HasCheckConstraint("CHK_CustomerFeedback_Rating", "[Rating] >= 1 AND [Rating] <= 5");
+            });
 
         builder.Entity<VendorDelivered>()
             .HasOne(item => item.Order)
