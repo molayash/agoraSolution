@@ -75,6 +75,9 @@ namespace CRM.Application.Services.Product_Service
                 Weight = model.Weight,
                 Rating = model.Rating,
                 StockItems = model.StockItems,
+                IsPublish = accessContext.IsAdmin
+                    ? vendorId <= 0
+                    : model.IsPublish,
                 VendorId = vendorId > 0 ? vendorId : null,
                 ApprovalStatus = accessContext.IsAdmin
                     ? ProductApprovalStatuses.Normalize(model.ApprovalStatus, ProductApprovalStatuses.Approved)
@@ -182,6 +185,7 @@ namespace CRM.Application.Services.Product_Service
                                           Weight = p.Weight,
                                           Rating = p.Rating,
                                           StockItems = p.StockItems,
+                                          IsPublish = p.IsPublish,
                                           VendorId = p.VendorId,
                                           VendorName = v != null ? v.Name : null,
                                           VendorEmail = v != null ? v.Email : null,
@@ -287,6 +291,9 @@ namespace CRM.Application.Services.Product_Service
             product.Weight = model.Weight;
             product.Rating = model.Rating;
             product.StockItems = model.StockItems;
+            product.IsPublish = accessContext.IsAdmin
+                ? product.IsPublish
+                : model.IsPublish;
             product.VendorId = vendorId > 0 ? vendorId : null;
             product.ApprovalStatus = accessContext.IsAdmin
                 ? ProductApprovalStatuses.Normalize(model.ApprovalStatus, product.ApprovalStatus)
@@ -365,6 +372,7 @@ namespace CRM.Application.Services.Product_Service
                        Weight = p.Weight,
                        Rating = p.Rating,
                        StockItems = p.StockItems,
+                       IsPublish = p.IsPublish,
                        VendorId = p.VendorId,
                        VendorName = v != null ? v.Name : null,
                        VendorEmail = v != null ? v.Email : null,
@@ -380,12 +388,14 @@ namespace CRM.Application.Services.Product_Service
             query = query.Where(item => item.IsDelete == 0);
 
             if (accessContext.IsAdmin)
-                return query;
+                return query.Where(item => item.VendorId == null || item.IsPublish);
 
             if (accessContext.Vendor != null)
                 return query.Where(item => item.VendorId == accessContext.Vendor.Id);
 
-            return query.Where(item => item.ApprovalStatus == ProductApprovalStatuses.Approved);
+            return query.Where(item =>
+                item.IsPublish &&
+                item.ApprovalStatus == ProductApprovalStatuses.Approved);
         }
 
         private async Task<ProductAccessContext> ResolveAccessContextAsync(CancellationToken ct)

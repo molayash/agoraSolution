@@ -3,6 +3,7 @@ using CRM.Domain.Entities;
 using CRM.Domain.Entities.Auth;
 using MenuRolePermissionsEntity = CRM.Domain.Entities.Auth.MenuRolePermissions;
 using DefultMenuRolePermissionsEntity = CRM.Domain.Entities.Auth.DefultMenuRolePermissions;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace CRM.Infrastructure.Repositories;
 
@@ -40,8 +41,14 @@ public class UnitOfWork : IUnitOfWork
         OrderItems = new GenericRepository<OrderItem>(context);
         OrderVendorForwards = new GenericRepository<OrderVendorForward>(context);
         OrderVendorComments = new GenericRepository<OrderVendorComment>(context);
+        CustomerFeedbacks = new GenericRepository<CustomerFeedback>(context);
+        VendorDelivereds = new GenericRepository<VendorDelivered>(context);
+        VendorDeliveredDetails = new GenericRepository<VendorDeliveredDetail>(context);
+        CustomerDelivereds = new GenericRepository<CustomerDelivered>(context);
+        CustomerDeliveredDetails = new GenericRepository<CustomerDeliveredDetail>(context);
 
         Vendors = new GenericRepository<Vendor>(context);
+        Customers = new GenericRepository<Customer>(context);
     }
 
     public IGenericRepository<UserRefreshToken> UserRefreshTokens { get; }
@@ -70,8 +77,17 @@ public class UnitOfWork : IUnitOfWork
     public IGenericRepository<OrderItem> OrderItems { get; }
     public IGenericRepository<OrderVendorForward> OrderVendorForwards { get; }
     public IGenericRepository<OrderVendorComment> OrderVendorComments { get; }
+    public IGenericRepository<CustomerFeedback> CustomerFeedbacks { get; }
+    public IGenericRepository<VendorDelivered> VendorDelivereds { get; }
+    public IGenericRepository<VendorDeliveredDetail> VendorDeliveredDetails { get; }
+    public IGenericRepository<CustomerDelivered> CustomerDelivereds { get; }
+    public IGenericRepository<CustomerDeliveredDetail> CustomerDeliveredDetails { get; }
 
     public IGenericRepository<Vendor> Vendors { get; }
+    public IGenericRepository<Customer> Customers { get; }
+
+    public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken ct = default)
+        => _context.Database.BeginTransactionAsync(ct);
 
     public Task<int> SaveChangesAsync(CancellationToken ct = default)
         => _context.SaveChangesAsync(ct);

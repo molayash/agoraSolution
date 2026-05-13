@@ -73,7 +73,20 @@ namespace CRM.Application.Services.Auth_Service
                 throw new Exception("Vendor account not found.");
 
             if (!vendor.IsActive || !string.Equals(vendor.Status, VendorStatuses.Active, StringComparison.OrdinalIgnoreCase))
-                throw new Exception($"Your vendor account is currently {VendorStatuses.Normalize(vendor.Status).ToLowerInvariant()}.");
+                throw new Exception(BuildVendorAccessMessage(vendor.Status));
+        }
+
+        private static string BuildVendorAccessMessage(string? status)
+        {
+            var normalizedStatus = VendorStatuses.Normalize(status);
+
+            return normalizedStatus switch
+            {
+                VendorStatuses.Pending => "Your vendor registration has been received successfully. Please wait for admin approval before logging in.",
+                VendorStatuses.Partial => "Your vendor account is under review. Please wait for final admin approval before logging in.",
+                VendorStatuses.Cancel => "Your vendor account is not approved at the moment. Please contact Agora Food support for help.",
+                _ => $"Your vendor account is currently {normalizedStatus.ToLowerInvariant()}."
+            };
         }
 
         private static LoginResponseVM BuildLoginResponse(
@@ -84,7 +97,7 @@ namespace CRM.Application.Services.Auth_Service
         {
             var userinfo = new LoginUserVM
             {
-                FullName = user.UserName,
+                FullName = user.FullName,
                 Email = user.Email,
                 UserId = user.Id,
                 RoleNames = userRoles.ToList()

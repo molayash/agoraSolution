@@ -18,11 +18,16 @@ namespace CRM.Application.Services.Email_Service
         public EmailService(IOptions<EmailSettings> emailSettings)
         {
             _emailSettings = emailSettings.Value;
-            // Initialize QuestPDF license (Community)
-            QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
         }
 
-        public async Task<bool> SendEmailAsync(string toEmail, string subject, string body, byte[]? attachment = null, string? attachmentName = null)
+        public async Task<bool> SendEmailAsync(
+            string toEmail,
+            string subject,
+            string body,
+            byte[]? attachment = null,
+            string? attachmentName = null,
+            string? badgeText = null,
+            string? titleText = null)
         {
             try
             {
@@ -36,7 +41,7 @@ namespace CRM.Application.Services.Email_Service
                     client.UseDefaultCredentials = false;
                     client.Credentials = new NetworkCredential(_emailSettings.Sender, _emailSettings.Password);
 
-                    string htmlBody = GetHtmlTemplate(body);
+                    string htmlBody = GetHtmlTemplate(body, badgeText, titleText);
 
                     var mailMessage = new MailMessage
                     {
@@ -67,11 +72,13 @@ namespace CRM.Application.Services.Email_Service
             }
         }
 
-        private string GetHtmlTemplate(string content)
+        private string GetHtmlTemplate(string content, string? badgeText = null, string? titleText = null)
         {
             // Convert plain text newlines to HTML line breaks
             string formattedContent = content.Replace("\n", "<br/>");
             string logoUrl = "https://i.postimg.cc/W4N26c0T/mainlogo.jpg";
+            string resolvedBadgeText = string.IsNullOrWhiteSpace(badgeText) ? "Fulfillment Required" : badgeText.Trim();
+            string resolvedTitleText = string.IsNullOrWhiteSpace(titleText) ? "Stock Fulfillment Request" : titleText.Trim();
 
             return $@"
 <!DOCTYPE html>
@@ -106,8 +113,8 @@ namespace CRM.Application.Services.Email_Service
             </div>
             
             <div class='content-body'>
-                <div class='status-badge'>Fulfillment Required</div>
-                <h1 class='title'>Stock Fulfillment Request</h1>
+                <div class='status-badge'>{resolvedBadgeText}</div>
+                <h1 class='title'>{resolvedTitleText}</h1>
                 
                 <div class='message-box'>
                     {formattedContent}

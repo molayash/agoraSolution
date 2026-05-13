@@ -1,5 +1,6 @@
 using CRM.Domain.Entities;
 using CRM.Domain.Entities.Auth;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace CRM.Application.Interfaces.Repositories;
 
@@ -35,9 +36,16 @@ public interface IUnitOfWork : IDisposable
     IGenericRepository<OrderItem> OrderItems { get; }
     IGenericRepository<OrderVendorForward> OrderVendorForwards { get; }
     IGenericRepository<OrderVendorComment> OrderVendorComments { get; }
+    IGenericRepository<CustomerFeedback> CustomerFeedbacks { get; }
+    IGenericRepository<VendorDelivered> VendorDelivereds { get; }
+    IGenericRepository<VendorDeliveredDetail> VendorDeliveredDetails { get; }
+    IGenericRepository<CustomerDelivered> CustomerDelivereds { get; }
+    IGenericRepository<CustomerDeliveredDetail> CustomerDeliveredDetails { get; }
 
     // Vendor
     IGenericRepository<Vendor> Vendors { get; }
+    IGenericRepository<Customer> Customers { get; }
 
+    Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken ct = default);
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

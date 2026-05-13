@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Infrastructure;
 
-public class CrmDbContext:IdentityDbContext<ApplicationUser, ApplicationRole, string>
+public class CrmDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, string>
 {
     public CrmDbContext()
     {
@@ -15,8 +15,6 @@ public class CrmDbContext:IdentityDbContext<ApplicationUser, ApplicationRole, st
     public CrmDbContext(DbContextOptions<CrmDbContext> options) : base(options)
     {
     }
-
-
 
     #region Auth
     public DbSet<UserRefreshToken> UserRefreshTokens { get; set; }
@@ -46,15 +44,19 @@ public class CrmDbContext:IdentityDbContext<ApplicationUser, ApplicationRole, st
     public virtual DbSet<OrderItem> OrderItems { get; set; }
     public virtual DbSet<OrderVendorForward> OrderVendorForwards { get; set; }
     public virtual DbSet<OrderVendorComment> OrderVendorComments { get; set; }
+    public virtual DbSet<CustomerFeedback> CustomerFeedbacks { get; set; }
+    public virtual DbSet<VendorDelivered> VendorDelivereds { get; set; }
+    public virtual DbSet<VendorDeliveredDetail> VendorDeliveredDetails { get; set; }
+    public virtual DbSet<CustomerDelivered> CustomerDelivereds { get; set; }
+    public virtual DbSet<CustomerDeliveredDetail> CustomerDeliveredDetails { get; set; }
     public virtual DbSet<Vendor> Vendors { get; set; }
-
+    public virtual DbSet<Customer> Customers { get; set; }
     #endregion
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
 
-        // Apply fixed seed data
         FixedData.Seed(builder);
 
         builder.Entity<Product>()
@@ -64,10 +66,10 @@ public class CrmDbContext:IdentityDbContext<ApplicationUser, ApplicationRole, st
             .OnDelete(DeleteBehavior.NoAction);
 
         builder.Entity<Product>()
-           .HasOne(p => p.Category)
-           .WithMany()
-           .HasForeignKey(p => p.ProductCategoryId)
-           .OnDelete(DeleteBehavior.NoAction);
+            .HasOne(p => p.Category)
+            .WithMany()
+            .HasForeignKey(p => p.ProductCategoryId)
+            .OnDelete(DeleteBehavior.NoAction);
 
         builder.Entity<Product>()
             .HasOne(p => p.Vendor)
@@ -96,12 +98,38 @@ public class CrmDbContext:IdentityDbContext<ApplicationUser, ApplicationRole, st
             .HasForeignKey(hp => hp.ProductId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Order Configuration
         builder.Entity<Order>()
             .HasMany(o => o.OrderItems)
             .WithOne(oi => oi.Order)
             .HasForeignKey(oi => oi.OrderId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<Customer>()
+            .HasOne(customer => customer.User)
+            .WithMany()
+            .HasForeignKey(customer => customer.UserId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<Customer>()
+            .HasIndex(customer => customer.UserId)
+            .IsUnique();
+
+        builder.Entity<Customer>()
+            .HasIndex(customer => customer.Email)
+            .IsUnique();
+
+        builder.Entity<Customer>()
+            .HasIndex(customer => customer.Phone)
+            .IsUnique();
+
+        builder.Entity<Order>()
+            .HasOne(order => order.Customer)
+            .WithMany(customer => customer.Orders)
+            .HasForeignKey(order => order.CustomerId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<Order>()
+            .HasIndex(order => order.CustomerId);
 
         builder.Entity<OrderVendorForward>()
             .HasOne(ovf => ovf.Order)
@@ -138,5 +166,132 @@ public class CrmDbContext:IdentityDbContext<ApplicationUser, ApplicationRole, st
 
         builder.Entity<OrderVendorComment>()
             .HasIndex(ovc => new { ovc.OrderId, ovc.VendorId, ovc.CreatedAt });
+
+        builder.Entity<CustomerFeedback>()
+            .HasOne(item => item.Customer)
+            .WithMany(customer => customer.Feedbacks)
+            .HasForeignKey(item => item.CustomerId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<CustomerFeedback>()
+            .HasOne(item => item.Order)
+            .WithMany(order => order.CustomerFeedbacks)
+            .HasForeignKey(item => item.OrderId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<CustomerFeedback>()
+            .HasIndex(item => new { item.CustomerId, item.CreatedAt });
+
+        builder.Entity<CustomerFeedback>()
+            .HasIndex(item => item.OrderId);
+
+        builder.Entity<CustomerFeedback>()
+            .ToTable(table =>
+            {
+                table.HasCheckConstraint("CHK_CustomerFeedback_Rating", "[Rating] >= 1 AND [Rating] <= 5");
+            });
+
+        builder.Entity<VendorDelivered>()
+            .HasOne(item => item.Order)
+            .WithMany()
+            .HasForeignKey(item => item.OrderId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<VendorDelivered>()
+            .HasOne(item => item.Vendor)
+            .WithMany()
+            .HasForeignKey(item => item.VendorId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<VendorDelivered>()
+            .HasMany(item => item.Details)
+            .WithOne(detail => detail.VendorDelivered)
+            .HasForeignKey(detail => detail.VendorDeliveredId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<VendorDelivered>()
+            .Property(item => item.TotalAmount)
+            .HasComputedColumnSql("[SubTotal] - [DiscountAmount] + [ShipmentCharge] + [VatAmount]", true);
+
+        builder.Entity<VendorDelivered>()
+            .HasIndex(item => new { item.OrderId, item.VendorId })
+            .IsUnique();
+
+        builder.Entity<VendorDelivered>()
+            .HasIndex(item => item.VendorDeliveredStringId)
+            .IsUnique();
+
+        builder.Entity<VendorDelivered>()
+            .ToTable(table =>
+            {
+                table.HasCheckConstraint("CHK_VendorDelivered_Discount", "[DiscountAmount] >= 0");
+                table.HasCheckConstraint("CHK_VendorDelivered_ShipmentCharge", "[ShipmentCharge] >= 0");
+                table.HasCheckConstraint("CHK_VendorDelivered_Vat", "[VatAmount] >= 0");
+            });
+
+        builder.Entity<VendorDeliveredDetail>()
+            .Property(item => item.TotalPrice)
+            .HasComputedColumnSql("[Quantity] * [UnitPrice]", true);
+
+        builder.Entity<VendorDeliveredDetail>()
+            .ToTable(table =>
+            {
+                table.HasCheckConstraint("CHK_VendorDeliveredDetail_Quantity", "[Quantity] > 0");
+                table.HasCheckConstraint("CHK_VendorDeliveredDetail_UnitPrice", "[UnitPrice] >= 0");
+            });
+
+        builder.Entity<CustomerDelivered>()
+            .HasOne(item => item.Order)
+            .WithMany()
+            .HasForeignKey(item => item.OrderId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<CustomerDelivered>()
+            .HasOne(item => item.Customer)
+            .WithMany()
+            .HasForeignKey(item => item.CustomerId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<CustomerDelivered>()
+            .HasMany(item => item.Details)
+            .WithOne(detail => detail.CustomerDelivered)
+            .HasForeignKey(detail => detail.CustomerDeliveredId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<CustomerDelivered>()
+            .Property(item => item.TotalAmount)
+            .HasComputedColumnSql("[SubTotal] - [DiscountAmount] + [ShipmentCharge] + [VatAmount]", true);
+
+        builder.Entity<CustomerDelivered>()
+            .HasIndex(item => item.OrderId)
+            .IsUnique();
+
+        builder.Entity<CustomerDelivered>()
+            .HasIndex(item => item.CustomerId);
+
+        builder.Entity<CustomerDelivered>()
+            .ToTable(table =>
+            {
+                table.HasCheckConstraint("CHK_CustomerDelivered_Discount", "[DiscountAmount] >= 0");
+                table.HasCheckConstraint("CHK_CustomerDelivered_ShipmentCharge", "[ShipmentCharge] >= 0");
+                table.HasCheckConstraint("CHK_CustomerDelivered_Vat", "[VatAmount] >= 0");
+            });
+
+        builder.Entity<CustomerDeliveredDetail>()
+            .Property(item => item.TotalPrice)
+            .HasComputedColumnSql("[Quantity] * [UnitPrice]", true);
+
+        builder.Entity<CustomerDeliveredDetail>()
+            .HasIndex(item => item.VendorId);
+
+        builder.Entity<CustomerDeliveredDetail>()
+            .HasIndex(item => item.VendorDeliveredId);
+
+        builder.Entity<CustomerDeliveredDetail>()
+            .ToTable(table =>
+            {
+                table.HasCheckConstraint("CHK_CustomerDeliveredDetail_Quantity", "[Quantity] > 0");
+                table.HasCheckConstraint("CHK_CustomerDeliveredDetail_UnitPrice", "[UnitPrice] >= 0");
+            });
     }
 }

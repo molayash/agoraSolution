@@ -8,6 +8,13 @@ namespace CRM.Application.Services.Email_Service
 {
     public interface IEmailService
     {
-        Task<bool> SendEmailAsync(string toEmail, string subject, string body, byte[]? attachment = null, string? attachmentName = null);
+        Task<bool> SendEmailAsync(
+            string toEmail,
+            string subject,
+            string body,
+            byte[]? attachment = null,
+            string? attachmentName = null,
+            string? badgeText = null,
+            string? titleText = null);
     }
 }

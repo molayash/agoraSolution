@@ -23,6 +23,7 @@ namespace CRM.WebAPI.Controllers
             return Ok(data);
         }
 
+        [Authorize]
         [HttpGet("getbyid/{id:long}")]
         public async Task<IActionResult> GetById(long id, CancellationToken cancellationToken)
         {
@@ -46,6 +47,7 @@ namespace CRM.WebAPI.Controllers
             return BadRequest(new { orderId = 0, message = "Failed to create order." });
         }
 
+        [Authorize]
         [HttpPut("update")]
         public async Task<IActionResult> UpdateStatus([FromBody] UpdateOrderStatusViewModel model, CancellationToken cancellationToken)
         {
@@ -107,6 +109,7 @@ namespace CRM.WebAPI.Controllers
             return Ok(data);
         }
 
+        [Authorize]
         [HttpGet("getmyorders/{userId}")]
         public async Task<IActionResult> GetMyOrders(string userId, CancellationToken cancellationToken)
         {
@@ -114,6 +117,7 @@ namespace CRM.WebAPI.Controllers
             return Ok(data);
         }
 
+        [Authorize]
         [HttpPost("forward-to-vendor")]
         public async Task<IActionResult> ForwardToVendor([FromBody] ForwardOrderViewModel model, CancellationToken cancellationToken)
         {
@@ -129,9 +133,9 @@ namespace CRM.WebAPI.Controllers
 
         [Authorize]
         [HttpGet("get-forward-comments/{orderId:long}")]
-        public async Task<IActionResult> GetForwardComments(long orderId, [FromQuery] string? userId, CancellationToken cancellationToken)
+        public async Task<IActionResult> GetForwardComments(long orderId, [FromQuery] string? userId, [FromQuery] bool markAsRead, CancellationToken cancellationToken)
         {
-            var data = await _orderService.GetForwardComments(orderId, userId, cancellationToken);
+            var data = await _orderService.GetForwardComments(orderId, userId, markAsRead, cancellationToken);
             return Ok(data);
         }
 
@@ -147,6 +151,28 @@ namespace CRM.WebAPI.Controllers
                 return Ok(new { message = "Comment added successfully." });
 
             return BadRequest(new { message = "Failed to add the comment." });
+        }
+
+        [Authorize]
+        [HttpPut("update-forward-status")]
+        public async Task<IActionResult> UpdateForwardStatus([FromBody] UpdateOrderVendorForwardStatusViewModel model, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var result = await _orderService.UpdateForwardStatus(model, cancellationToken);
+            if (result.Success)
+                return Ok(result);
+
+            return BadRequest(new { message = result.Message });
+        }
+
+        [Authorize]
+        [HttpGet("get-forward-notifications")]
+        public async Task<IActionResult> GetForwardNotifications([FromQuery] string? userId, [FromQuery] bool markAsRead, CancellationToken cancellationToken)
+        {
+            var data = await _orderService.GetForwardNotifications(userId, markAsRead, cancellationToken);
+            return Ok(data);
         }
     }
 }

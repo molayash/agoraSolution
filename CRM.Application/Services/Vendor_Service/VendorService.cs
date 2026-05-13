@@ -1,4 +1,5 @@
 using CRM.Application.Interfaces.Repositories;
+using CRM.Application.Services.Email_Service;
 using CRM.Application.Services.Work_Context;
 using CRM.Domain.Constants;
 using CRM.Domain.Entities;
@@ -17,17 +18,20 @@ namespace CRM.Application.Services.Vendor_Service
         private readonly IUnitOfWork _unitOfWork;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<ApplicationRole> _roleManager;
+        private readonly IEmailService _emailService;
 
         public VendorService(
             IWorkContext workContext,
             IUnitOfWork unitOfWork,
             UserManager<ApplicationUser> userManager,
-            RoleManager<ApplicationRole> roleManager)
+            RoleManager<ApplicationRole> roleManager,
+            IEmailService emailService)
         {
             _workContext = workContext;
             _unitOfWork = unitOfWork;
             _userManager = userManager;
             _roleManager = roleManager;
+            _emailService = emailService;
         }
 
         public async Task<VendorCreateResultVm> Add(VendorVm model, CancellationToken cancellationToken)
@@ -89,6 +93,8 @@ namespace CRM.Application.Services.Vendor_Service
             await EnsureVendorEmailAvailableAsync(model.Email, null, null, cancellationToken);
 
             ApplicationUser? vendorUser = null;
+            Vendor? vendor = null;
+            string temporaryPassword = string.Empty;
 
             try
             {
@@ -99,12 +105,12 @@ namespace CRM.Application.Services.Vendor_Service
                     "Vendor Registration Portal",
                     null,
                     null,
-                    cancellationToken,
-                    createPassword: false);
+                    cancellationToken);
 
                 vendorUser = account.User;
+                temporaryPassword = account.TemporaryPassword;
 
-                var vendor = new Vendor
+                vendor = new Vendor
                 {
                     Name = model.Name,
                     Phone = model.Phone,
@@ -123,11 +129,18 @@ namespace CRM.Application.Services.Vendor_Service
 
                 await _unitOfWork.Vendors.AddAsync(vendor, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await SendVendorRegistrationEmailAsync(model.Name, model.Email, temporaryPassword);
 
                 return vendor.Id;
             }
             catch
             {
+                if (vendor != null && vendor.Id > 0)
+                {
+                    _unitOfWork.Vendors.Remove(vendor);
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                }
+
                 if (vendorUser != null)
                     await _userManager.DeleteAsync(vendorUser);
 
@@ -461,6 +474,42 @@ namespace CRM.Application.Services.Vendor_Service
 
             if (!result.Succeeded && !await _roleManager.RoleExistsAsync(role))
                 throw new Exception(string.Join(" ", result.Errors.Select(item => item.Description)));
+        }
+
+        private async Task SendVendorRegistrationEmailAsync(string vendorName, string email, string temporaryPassword)
+        {
+            var subject = "Agora Food vendor registration received";
+            var message = BuildVendorRegistrationEmailBody(vendorName, email, temporaryPassword);
+            var emailSent = await _emailService.SendEmailAsync(
+                email,
+                subject,
+                message,
+                badgeText: "Awaiting Approval",
+                titleText: "Vendor Registration Received");
+
+            if (!emailSent)
+                throw new Exception("We could not send your vendor credential email, so the registration request was not completed. Please try again.");
+        }
+
+        private static string BuildVendorRegistrationEmailBody(string vendorName, string email, string temporaryPassword)
+        {
+            var builder = new System.Text.StringBuilder();
+            builder.AppendLine($"Dear {vendorName},");
+            builder.AppendLine();
+            builder.AppendLine("Thank you for registering as a vendor with Agora Food.");
+            builder.AppendLine("We have received your registration request and it is now awaiting admin approval.");
+            builder.AppendLine();
+            builder.AppendLine("Your login details:");
+            builder.AppendLine($"Email: {email}");
+            builder.AppendLine($"Password: {temporaryPassword}");
+            builder.AppendLine();
+            builder.AppendLine("You can keep these credentials ready, but you will only be able to sign in after your account has been approved.");
+            builder.AppendLine("We will notify you once your vendor account is activated.");
+            builder.AppendLine();
+            builder.AppendLine("Best regards,");
+            builder.AppendLine("Agora Food Team");
+
+            return builder.ToString();
         }
 
         private static string GenerateTemporaryPassword(int length = 12)

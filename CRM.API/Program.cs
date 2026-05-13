@@ -1,4 +1,4 @@
-﻿using CRM.Domain.Entities.Auth;
+using CRM.Domain.Entities.Auth;
 using CRM.Infrastructure;
 using CRM.Infrastructure.Repositories;
 using CRM.Application.Extensions;

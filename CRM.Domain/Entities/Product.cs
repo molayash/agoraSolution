@@ -27,7 +27,9 @@ namespace CRM.Domain.Entities
         public int StockItems { get; set; } = 0;
         public long? VendorId { get; set; }
         public Vendor? Vendor { get; set; }
+        public bool IsPublish { get; set; } = true;
         public string ApprovalStatus { get; set; } = "Approved";
+
 
         public ICollection<ProductAboutItem> ProductAboutItems { get; set; }
         public ICollection<ProductColor> ProductColors { get; set; }
