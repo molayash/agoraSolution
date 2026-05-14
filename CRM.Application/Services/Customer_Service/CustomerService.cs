@@ -13,6 +13,8 @@ namespace CRM.Application.Services.Customer_Service
     public class CustomerService : ICustomerService
     {
         private const string CustomerRoleName = "Customer";
+        private const string LegacyOrderStatusProcessing = "processing";
+        private const string OrderStatusAccepted = "accept order";
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly UserManager<ApplicationUser> _userManager;
@@ -300,7 +302,7 @@ namespace CRM.Application.Services.Customer_Service
                         IsActive = customer.IsActive,
                         TotalOrders = customerOrders.Count,
                         TotalSpent = customerOrders.Sum(order => order.TotalAmount),
-                        LatestOrderStatus = customerOrders.FirstOrDefault()?.Status ?? "No orders",
+                        LatestOrderStatus = NormalizeLatestOrderStatus(customerOrders.FirstOrDefault()?.Status),
                         LatestOrderDate = customerOrders.FirstOrDefault()?.OrderDate,
                         JoinedAt = customer.CreatedAt
                     };
@@ -369,7 +371,7 @@ namespace CRM.Application.Services.Customer_Service
                         IsActive = customer.IsActive,
                         TotalOrders = customerOrders.Count,
                         TotalSpent = customerOrders.Sum(order => order.TotalAmount),
-                        LatestOrderStatus = customerOrders.FirstOrDefault()?.Status ?? "No orders",
+                        LatestOrderStatus = NormalizeLatestOrderStatus(customerOrders.FirstOrDefault()?.Status),
                         LatestOrderDate = customerOrders.FirstOrDefault()?.OrderDate,
                         JoinedAt = customer.CreatedAt
                     };
@@ -506,6 +508,17 @@ namespace CRM.Application.Services.Customer_Service
 
         private static string BuildFullName(string firstName, string lastName) =>
             $"{firstName} {lastName}".Trim();
+
+        private static string NormalizeLatestOrderStatus(string? status)
+        {
+            if (string.IsNullOrWhiteSpace(status))
+                return "No orders";
+
+            var normalizedStatus = status.Trim().ToLowerInvariant();
+            return normalizedStatus == LegacyOrderStatusProcessing
+                ? OrderStatusAccepted
+                : status.Trim();
+        }
 
         private static CustomerProfileVm MapProfile(Customer customer)
         {

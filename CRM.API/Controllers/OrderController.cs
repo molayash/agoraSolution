@@ -65,6 +65,24 @@ namespace CRM.WebAPI.Controllers
         }
 
         [Authorize]
+        [HttpPut("update-shipment")]
+        public async Task<IActionResult> UpdateShipment([FromBody] UpdateOrderShipmentViewModel model, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var result = await _orderService.UpdateOrderShipment(model, cancellationToken);
+            if (result == null)
+                return NotFound(new { message = "Order not found." });
+
+            return Ok(new
+            {
+                message = "Order shipment information updated successfully.",
+                order = result
+            });
+        }
+
+        [Authorize]
         [HttpPut("update-customer-query")]
         public async Task<IActionResult> UpdateCustomerQuery([FromBody] UpdateCustomerQueryViewModel model, CancellationToken cancellationToken)
         {
@@ -129,6 +147,21 @@ namespace CRM.WebAPI.Controllers
                 return Ok(new { message = "Order forwarded to vendor successfully." });
 
             return BadRequest(new { message = "Failed to forward order." });
+        }
+
+        [Authorize]
+        [HttpPost("auto-forward/{orderId:long}")]
+        public async Task<IActionResult> AutoForwardToVendors(long orderId, CancellationToken cancellationToken)
+        {
+            var result = await _orderService.AutoForwardOrderToVendors(orderId, cancellationToken);
+
+            if (result.Success)
+                return Ok(result);
+
+            if (result.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                return NotFound(result);
+
+            return BadRequest(result);
         }
 
         [Authorize]

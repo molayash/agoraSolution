@@ -57,6 +57,17 @@ namespace CRM.Domain.Entities
         [MaxLength(2000)]
         public string? CustomerQuery { get; set; }
 
+        [MaxLength(1000)]
+        public string? ShipmentInfo { get; set; }
+
+        [MaxLength(500)]
+        public string? ShipmentLiveTrackLink { get; set; }
+
+        [MaxLength(100)]
+        public string? ShipmentProvider { get; set; }
+
+        public DateTime? DeliveryHandoverDate { get; set; }
+
         public long? CustomerId { get; set; }
 
         public DateTime OrderDate { get; set; } = DateTime.UtcNow;

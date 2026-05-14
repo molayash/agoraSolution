@@ -39,8 +39,6 @@ public interface IUnitOfWork : IDisposable
     IGenericRepository<CustomerFeedback> CustomerFeedbacks { get; }
     IGenericRepository<VendorDelivered> VendorDelivereds { get; }
     IGenericRepository<VendorDeliveredDetail> VendorDeliveredDetails { get; }
-    IGenericRepository<CustomerDelivered> CustomerDelivereds { get; }
-    IGenericRepository<CustomerDeliveredDetail> CustomerDeliveredDetails { get; }
 
     // Vendor
     IGenericRepository<Vendor> Vendors { get; }

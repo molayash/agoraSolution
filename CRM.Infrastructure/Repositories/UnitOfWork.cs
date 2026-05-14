@@ -44,8 +44,6 @@ public class UnitOfWork : IUnitOfWork
         CustomerFeedbacks = new GenericRepository<CustomerFeedback>(context);
         VendorDelivereds = new GenericRepository<VendorDelivered>(context);
         VendorDeliveredDetails = new GenericRepository<VendorDeliveredDetail>(context);
-        CustomerDelivereds = new GenericRepository<CustomerDelivered>(context);
-        CustomerDeliveredDetails = new GenericRepository<CustomerDeliveredDetail>(context);
 
         Vendors = new GenericRepository<Vendor>(context);
         Customers = new GenericRepository<Customer>(context);
@@ -80,8 +78,6 @@ public class UnitOfWork : IUnitOfWork
     public IGenericRepository<CustomerFeedback> CustomerFeedbacks { get; }
     public IGenericRepository<VendorDelivered> VendorDelivereds { get; }
     public IGenericRepository<VendorDeliveredDetail> VendorDeliveredDetails { get; }
-    public IGenericRepository<CustomerDelivered> CustomerDelivereds { get; }
-    public IGenericRepository<CustomerDeliveredDetail> CustomerDeliveredDetails { get; }
 
     public IGenericRepository<Vendor> Vendors { get; }
     public IGenericRepository<Customer> Customers { get; }

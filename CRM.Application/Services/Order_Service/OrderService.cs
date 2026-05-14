@@ -16,6 +16,9 @@ namespace CRM.Application.Services.Order_Service
         private const string ForwardStatusPending = "pending";
         private const string ForwardStatusAccepted = "accepted";
         private const string ForwardStatusProcessing = "processing";
+        private const string LegacyOrderStatusProcessing = "processing";
+        private const string OrderStatusAccepted = "accept order";
+        private const string OrderStatusShipmentReady = "shipment ready";
         private const string ForwardStatusDelivered = "delivered";
         private const string ForwardStatusLegacyDelivery = "delivery";
         private const string ForwardStatusCancelled = "cancelled";
@@ -175,14 +178,14 @@ namespace CRM.Application.Services.Order_Service
                 if (order == null)
                     return 1;
 
-                var normalizedStatus = model.Status.Trim().ToLowerInvariant();
+                var normalizedStatus = NormalizeOrderStatus(model.Status);
                 order.Status = normalizedStatus;
                 order.UpdatedAt = DateTime.UtcNow;
 
                 _unitOfWork.Orders.Update(order);
                 var result = await _unitOfWork.SaveChangesAsync(ct);
 
-                if (result > 0 && normalizedStatus == ForwardStatusProcessing)
+                if (result > 0 && normalizedStatus == OrderStatusAccepted)
                     await AutoForwardOrderToVendorsAsync(order, ct);
 
                 return result > 0 ? 2 : 0;
@@ -191,6 +194,51 @@ namespace CRM.Application.Services.Order_Service
             {
                 Console.WriteLine($"Error updating order status: {ex.Message}");
                 return 0;
+            }
+        }
+
+        public async Task<OrderViewModel?> UpdateOrderShipment(UpdateOrderShipmentViewModel model, CancellationToken ct)
+        {
+            try
+            {
+                var order = await _unitOfWork.Orders.Query()
+                    .Where(item => item.Id == model.Id && item.IsDelete == 0)
+                    .Include(item => item.OrderItems)
+                    .FirstOrDefaultAsync(ct);
+
+                if (order == null)
+                    return null;
+
+                var currentUser = await _workContext.CurrentUserAsync();
+
+                order.ShipmentInfo = NormalizeOptionalText(model.ShipmentInfo);
+                order.ShipmentLiveTrackLink = NormalizeOptionalText(model.ShipmentLiveTrackLink);
+                order.ShipmentProvider = NormalizeOptionalText(model.ShipmentProvider);
+                order.DeliveryHandoverDate = model.DeliveryHandoverDate;
+
+                var hasShipmentData =
+                    !string.IsNullOrWhiteSpace(order.ShipmentInfo) ||
+                    !string.IsNullOrWhiteSpace(order.ShipmentLiveTrackLink) ||
+                    !string.IsNullOrWhiteSpace(order.ShipmentProvider) ||
+                    order.DeliveryHandoverDate.HasValue;
+
+                if (hasShipmentData)
+                    order.Status = OrderStatusShipmentReady;
+
+                order.UpdatedAt = DateTime.UtcNow;
+                order.UpdatedBy = currentUser?.FullName ?? currentUser?.UserName ?? "System";
+
+                _unitOfWork.Orders.Update(order);
+                var result = await _unitOfWork.SaveChangesAsync(ct);
+                if (result <= 0)
+                    return null;
+
+                return await BuildOrderViewModelAsync(order, null, ct);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating order shipment: {ex.Message}");
+                return null;
             }
         }
 
@@ -256,12 +304,14 @@ namespace CRM.Application.Services.Order_Service
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
                 var searchTerm = request.SearchTerm.Trim().ToLowerInvariant();
+                var includeLegacyProcessing = searchTerm.Contains(OrderStatusAccepted);
                 query = query.Where(order =>
                     order.OrderNumber.ToLower().Contains(searchTerm) ||
                     order.FirstName.ToLower().Contains(searchTerm) ||
                     order.LastName.ToLower().Contains(searchTerm) ||
                     order.Phone.Contains(searchTerm) ||
-                    order.Status.ToLower().Contains(searchTerm));
+                    order.Status.ToLower().Contains(searchTerm) ||
+                    (includeLegacyProcessing && order.Status.ToLower().Contains(LegacyOrderStatusProcessing)));
             }
 
             var totalRecords = await query.CountAsync(ct);
@@ -321,11 +371,14 @@ namespace CRM.Application.Services.Order_Service
 
         public async Task<List<OrderViewModel>> GetOrdersByStatus(string status, CancellationToken ct)
         {
-            var normalizedStatus = status.Trim().ToLowerInvariant();
+            var normalizedStatus = NormalizeOrderStatus(status);
 
             return await LoadOrdersAsync(
                 _unitOfWork.Orders.Query()
-                    .Where(order => order.IsDelete == 0 && order.Status.ToLower() == normalizedStatus)
+                    .Where(order =>
+                        order.IsDelete == 0 &&
+                        (order.Status.ToLower() == normalizedStatus ||
+                        (normalizedStatus == OrderStatusAccepted && order.Status.ToLower() == LegacyOrderStatusProcessing)))
                     .OrderByDescending(order => order.OrderDate),
                 null,
                 ct);
@@ -362,6 +415,34 @@ namespace CRM.Application.Services.Order_Service
             }
 
             return vendorOrders;
+        }
+
+        public async Task<AutoForwardOrderResultViewModel> AutoForwardOrderToVendors(long orderId, CancellationToken ct)
+        {
+            var order = await _unitOfWork.Orders.Query()
+                .Where(item => item.Id == orderId && item.IsDelete == 0)
+                .Include(item => item.OrderItems)
+                .FirstOrDefaultAsync(ct);
+
+            if (order == null)
+            {
+                return new AutoForwardOrderResultViewModel
+                {
+                    Success = false,
+                    Message = "Order not found."
+                };
+            }
+
+            if (NormalizeOrderStatus(order.Status) != OrderStatusAccepted)
+            {
+                return new AutoForwardOrderResultViewModel
+                {
+                    Success = false,
+                    Message = "Order must be in Accept Order status before forwarding to vendors."
+                };
+            }
+
+            return await AutoForwardOrderToVendorsAsync(order, ct);
         }
 
         public async Task<bool> ForwardToVendor(ForwardOrderViewModel model, CancellationToken ct)
@@ -705,8 +786,12 @@ namespace CRM.Application.Services.Order_Service
                 ShippingFee = order.ShippingFee,
                 Tax = order.Tax,
                 TotalAmount = order.TotalAmount,
-                Status = order.Status,
+                Status = NormalizeOrderStatus(order.Status),
                 CustomerQuery = order.CustomerQuery,
+                ShipmentInfo = order.ShipmentInfo,
+                ShipmentLiveTrackLink = order.ShipmentLiveTrackLink,
+                ShipmentProvider = order.ShipmentProvider,
+                DeliveryHandoverDate = order.DeliveryHandoverDate,
                 OrderDate = order.OrderDate,
                 CreatedAt = order.CreatedAt,
                 UpdatedAt = order.UpdatedAt,
@@ -1046,8 +1131,12 @@ namespace CRM.Application.Services.Order_Service
                 ShippingFee = 0,
                 Tax = 0,
                 TotalAmount = vendorSubTotal,
-                Status = order.Status,
+                Status = NormalizeOrderStatus(order.Status),
                 CustomerQuery = order.CustomerQuery,
+                ShipmentInfo = order.ShipmentInfo,
+                ShipmentLiveTrackLink = order.ShipmentLiveTrackLink,
+                ShipmentProvider = order.ShipmentProvider,
+                DeliveryHandoverDate = order.DeliveryHandoverDate,
                 OrderDate = order.OrderDate,
                 CreatedAt = order.CreatedAt,
                 UpdatedAt = order.UpdatedAt,
@@ -1091,11 +1180,17 @@ namespace CRM.Application.Services.Order_Service
                 .FirstOrDefaultAsync(ct);
         }
 
-        private async Task AutoForwardOrderToVendorsAsync(Order order, CancellationToken ct)
+        private async Task<AutoForwardOrderResultViewModel> AutoForwardOrderToVendorsAsync(Order order, CancellationToken ct)
         {
             var fullOrder = await BuildOrderViewModelAsync(order, null, ct);
             if (fullOrder == null)
-                return;
+            {
+                return new AutoForwardOrderResultViewModel
+                {
+                    Success = false,
+                    Message = "Could not prepare the order for vendor forwarding."
+                };
+            }
 
             var vendorIds = fullOrder.Items
                 .Where(item => item.VendorId.HasValue)
@@ -1104,14 +1199,26 @@ namespace CRM.Application.Services.Order_Service
                 .ToList();
 
             if (vendorIds.Count == 0)
-                return;
+            {
+                return new AutoForwardOrderResultViewModel
+                {
+                    Success = false,
+                    Message = "No vendor was assigned to the products in this order."
+                };
+            }
 
             var vendors = await _unitOfWork.Vendors.Query()
                 .Where(vendor => vendor.IsDelete == 0 && vendor.IsActive && vendorIds.Contains(vendor.Id))
                 .ToListAsync(ct);
 
             if (vendors.Count == 0)
-                return;
+            {
+                return new AutoForwardOrderResultViewModel
+                {
+                    Success = false,
+                    Message = "No active vendor was found for this order."
+                };
+            }
 
             var successfulVendorIds = await _unitOfWork.OrderVendorForwards.Query()
                 .Where(forward =>
@@ -1124,23 +1231,73 @@ namespace CRM.Application.Services.Order_Service
                 .ToListAsync(ct);
 
             var currentUser = await _workContext.CurrentUserAsync();
+            var forwardedVendorCount = 0;
+            var failedVendorCount = 0;
+            var skippedVendorCount = 0;
 
             foreach (var vendor in vendors.Where(item => !successfulVendorIds.Contains(item.Id)))
             {
                 var vendorOrder = FilterOrderForVendor(fullOrder, vendor.Id);
                 if (vendorOrder == null)
+                {
+                    skippedVendorCount++;
                     continue;
+                }
 
                 var message = BuildVendorForwardMessage(vendor, vendorOrder);
 
-                await SendOrderToVendorAsync(
+                var success = await SendOrderToVendorAsync(
                     vendorOrder,
                     vendor,
                     message,
                     currentUser?.Id,
                     currentUser?.FullName,
                     ct);
+
+                if (success)
+                    forwardedVendorCount++;
+                else
+                    failedVendorCount++;
             }
+
+            skippedVendorCount += successfulVendorIds.Count;
+
+            if (forwardedVendorCount > 0)
+            {
+                return new AutoForwardOrderResultViewModel
+                {
+                    Success = true,
+                    Message = failedVendorCount > 0
+                        ? $"Order forwarded to {forwardedVendorCount} vendor(s), but {failedVendorCount} vendor forward(s) failed."
+                        : $"Order forwarded to {forwardedVendorCount} vendor(s) successfully.",
+                    ForwardedVendorCount = forwardedVendorCount,
+                    FailedVendorCount = failedVendorCount,
+                    SkippedVendorCount = skippedVendorCount
+                };
+            }
+
+            if (successfulVendorIds.Count > 0 && failedVendorCount == 0)
+            {
+                return new AutoForwardOrderResultViewModel
+                {
+                    Success = true,
+                    Message = "This order was already forwarded to the assigned vendor(s).",
+                    ForwardedVendorCount = 0,
+                    FailedVendorCount = 0,
+                    SkippedVendorCount = skippedVendorCount
+                };
+            }
+
+            return new AutoForwardOrderResultViewModel
+            {
+                Success = false,
+                Message = failedVendorCount > 0
+                    ? "Vendor forwarding failed. Please check vendor email configuration or try the manual forward action."
+                    : "No vendor could be forwarded for this order.",
+                ForwardedVendorCount = forwardedVendorCount,
+                FailedVendorCount = failedVendorCount,
+                SkippedVendorCount = skippedVendorCount
+            };
         }
 
         private async Task<bool> SendOrderToVendorAsync(
@@ -1332,8 +1489,12 @@ namespace CRM.Application.Services.Order_Service
                 ShippingFee = order.ShippingFee,
                 Tax = order.Tax,
                 TotalAmount = order.TotalAmount,
-                Status = order.Status,
+                Status = NormalizeOrderStatus(order.Status),
                 CustomerQuery = order.CustomerQuery,
+                ShipmentInfo = order.ShipmentInfo,
+                ShipmentLiveTrackLink = order.ShipmentLiveTrackLink,
+                ShipmentProvider = order.ShipmentProvider,
+                DeliveryHandoverDate = order.DeliveryHandoverDate,
                 OrderDate = order.OrderDate,
                 CreatedAt = order.CreatedAt,
                 UpdatedAt = order.UpdatedAt,
@@ -1459,6 +1620,25 @@ namespace CRM.Application.Services.Order_Service
 
             var noTags = Regex.Replace(withBreaks, "<.*?>", string.Empty);
             return WebUtility.HtmlDecode(noTags).Trim();
+        }
+
+        private static string? NormalizeOptionalText(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return null;
+
+            return value.Trim();
+        }
+
+        private static string NormalizeOrderStatus(string? status)
+        {
+            var normalizedStatus = string.IsNullOrWhiteSpace(status)
+                ? ForwardStatusPending
+                : status.Trim().ToLowerInvariant();
+
+            return normalizedStatus == LegacyOrderStatusProcessing
+                ? OrderStatusAccepted
+                : normalizedStatus;
         }
 
         private sealed class ProductVendorLookup

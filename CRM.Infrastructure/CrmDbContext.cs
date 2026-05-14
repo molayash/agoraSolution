@@ -47,8 +47,6 @@ public class CrmDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public virtual DbSet<CustomerFeedback> CustomerFeedbacks { get; set; }
     public virtual DbSet<VendorDelivered> VendorDelivereds { get; set; }
     public virtual DbSet<VendorDeliveredDetail> VendorDeliveredDetails { get; set; }
-    public virtual DbSet<CustomerDelivered> CustomerDelivereds { get; set; }
-    public virtual DbSet<CustomerDeliveredDetail> CustomerDeliveredDetails { get; set; }
     public virtual DbSet<Vendor> Vendors { get; set; }
     public virtual DbSet<Customer> Customers { get; set; }
     #endregion
@@ -240,58 +238,5 @@ public class CrmDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
                 table.HasCheckConstraint("CHK_VendorDeliveredDetail_UnitPrice", "[UnitPrice] >= 0");
             });
 
-        builder.Entity<CustomerDelivered>()
-            .HasOne(item => item.Order)
-            .WithMany()
-            .HasForeignKey(item => item.OrderId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        builder.Entity<CustomerDelivered>()
-            .HasOne(item => item.Customer)
-            .WithMany()
-            .HasForeignKey(item => item.CustomerId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        builder.Entity<CustomerDelivered>()
-            .HasMany(item => item.Details)
-            .WithOne(detail => detail.CustomerDelivered)
-            .HasForeignKey(detail => detail.CustomerDeliveredId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        builder.Entity<CustomerDelivered>()
-            .Property(item => item.TotalAmount)
-            .HasComputedColumnSql("[SubTotal] - [DiscountAmount] + [ShipmentCharge] + [VatAmount]", true);
-
-        builder.Entity<CustomerDelivered>()
-            .HasIndex(item => item.OrderId)
-            .IsUnique();
-
-        builder.Entity<CustomerDelivered>()
-            .HasIndex(item => item.CustomerId);
-
-        builder.Entity<CustomerDelivered>()
-            .ToTable(table =>
-            {
-                table.HasCheckConstraint("CHK_CustomerDelivered_Discount", "[DiscountAmount] >= 0");
-                table.HasCheckConstraint("CHK_CustomerDelivered_ShipmentCharge", "[ShipmentCharge] >= 0");
-                table.HasCheckConstraint("CHK_CustomerDelivered_Vat", "[VatAmount] >= 0");
-            });
-
-        builder.Entity<CustomerDeliveredDetail>()
-            .Property(item => item.TotalPrice)
-            .HasComputedColumnSql("[Quantity] * [UnitPrice]", true);
-
-        builder.Entity<CustomerDeliveredDetail>()
-            .HasIndex(item => item.VendorId);
-
-        builder.Entity<CustomerDeliveredDetail>()
-            .HasIndex(item => item.VendorDeliveredId);
-
-        builder.Entity<CustomerDeliveredDetail>()
-            .ToTable(table =>
-            {
-                table.HasCheckConstraint("CHK_CustomerDeliveredDetail_Quantity", "[Quantity] > 0");
-                table.HasCheckConstraint("CHK_CustomerDeliveredDetail_UnitPrice", "[UnitPrice] >= 0");
-            });
     }
 }
